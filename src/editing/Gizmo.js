@@ -268,8 +268,15 @@ class Gizmo {
     var normal = picking.getPickedNormal();
     var normalLen = vec3.len(normal);
     if (normalLen === 0.0) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
+      // Fallback a modo LOCAL cuando no hay normal válida
+      var m = mesh.getMatrix();
+      var xAxis = vec3.fromValues(m[0], m[1], m[2]);
+      var yAxis = vec3.fromValues(m[4], m[5], m[6]);
+      var zAxis = vec3.fromValues(m[8], m[9], m[10]);
+      vec3.normalize(xAxis, xAxis);
+      vec3.normalize(yAxis, yAxis);
+      vec3.normalize(zAxis, zAxis);
+      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
       return;
     }
 
