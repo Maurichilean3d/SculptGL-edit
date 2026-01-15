@@ -206,6 +206,8 @@ class Gizmo {
     this._spaceMode = SPACE_WORLD;
     this._spaceMatrix = mat4.create();
     this._spaceMatrixInv = mat4.create();
+    this._staticNormal = vec3.create();
+    this._hasStaticNormal = false;
 
     this._initTranslate();
     this._initRotate();
@@ -220,6 +222,8 @@ class Gizmo {
 
   setSpaceMode(mode) {
     this._spaceMode = mode;
+    this._updateMatrices();
+    this._main.render();
   }
 
   _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
@@ -263,9 +267,14 @@ class Gizmo {
       return;
     }
 
-    var picking = this._main.getPicking();
-    picking.computePickedNormal();
-    var normal = picking.getPickedNormal();
+    var normal;
+    if (this._isEditing && this._hasStaticNormal) {
+      normal = this._staticNormal;
+    } else {
+      var picking = this._main.getPicking();
+      picking.computePickedNormal();
+      normal = picking.getPickedNormal();
+    }
     var normalLen = vec3.len(normal);
     if (normalLen === 0.0) {
       // Fallback a modo LOCAL cuando no hay normal válida
@@ -466,11 +475,16 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage view arc alignment
-    var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-    vec3.normalize(eyeDir, eyeDir);
-    vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
-    vec3.normalize(eyeDir, eyeDir);
-    this._updateArcRotation(eyeDir);
+    if (this._spaceMode === SPACE_WORLD) {
+      var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+      vec3.normalize(eyeDir, eyeDir);
+      vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+      vec3.normalize(eyeDir, eyeDir);
+      this._updateArcRotation(eyeDir);
+    } else {
+      mat4.identity(this._rotW._baseMatrix);
+      mat4.identity(this._scaleW._baseMatrix);
+    }
 
     var traScaleSpace = mat4.create();
     mat4.mul(traScaleSpace, traScale, this._spaceMatrix);
@@ -786,11 +800,12 @@ class Gizmo {
     for (var i = 0; i < meshes.length; ++i) {
       var edim = meshes[i].getEditMatrix();
       mat4.identity(edim);
-      mat4.scale(edim, edim, inter);
-
       if (this._spaceMode !== SPACE_WORLD) {
         mat4.mul(edim, this._spaceMatrix, edim);
+        mat4.scale(edim, edim, inter);
         mat4.mul(edim, edim, this._spaceMatrixInv);
+      } else {
+        mat4.scale(edim, edim, inter);
       }
 
       this._scaleRotateEditMatrix(edim, i);
@@ -892,6 +907,15 @@ class Gizmo {
     if (!sel) return false;
 
     this._isEditing = true;
+    if (this._spaceMode === SPACE_NORMAL) {
+      var picking = this._main.getPicking();
+      picking.computePickedNormal();
+      var normal = picking.getPickedNormal();
+      vec3.copy(this._staticNormal, normal);
+      this._hasStaticNormal = vec3.len(this._staticNormal) !== 0.0;
+    } else {
+      this._hasStaticNormal = false;
+    }
     var type = sel._type;
     this._saveEditMatrices();
 
@@ -905,6 +929,7 @@ class Gizmo {
 
   onMouseUp() {
     this._isEditing = false;
+    this._hasStaticNormal = false;
   }
 }
 
