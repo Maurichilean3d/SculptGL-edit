@@ -1,0 +1,26 @@
+name: Deploy SculptGL to GitHub Pages
+
+on:
+  push:
+    branches: [ main ] # O el nombre de tu rama principal
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install and Build
+        run: |
+          npm install
+          npm run release # Esto genera los archivos finales en la carpeta app/ o build/
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: app # SculptGL suele poner el resultado en 'app'
+          branch: gh-pages # Se creará una rama nueva con el sitio listo

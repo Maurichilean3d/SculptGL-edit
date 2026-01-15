@@ -1,16 +1,33 @@
 <!--
-Entrada del sitio para despliegue (por ejemplo GitHub Pages).
-Redirige o encamina al directorio de la aplicación real dentro del proyecto.
+Entrada del sitio para despliegue en GitHub Pages.
+Redirige correctamente al directorio /app respetando el nombre del repositorio.
 -->
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta http-equiv="refresh" content="0; url=app/" />
-  <title>SculptGL</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SculptGL Edit</title>
+    <link rel="stylesheet" href="app/css/style.css">
 </head>
-<body>
-  <p>If you are not redirected, <a href="app/">open SculptGL</a>.</p>
+<body style="background-color: #222;">
+    <canvas id="canvas"></canvas>
+    
+    <script src="lib/jquery.js"></script>
+    
+    <script src="main.js"></script>
+
+    <script>
+        // Si main.js no carga nada, intentamos forzar el inicio
+        window.addEventListener('load', function() {
+            console.log("Intentando iniciar SculptGL...");
+            if (typeof SculptGL !== 'undefined') {
+                var app = new SculptGL();
+                app.start();
+            } else {
+                document.body.innerHTML += '<p style="color:white; text-align:center; margin-top:50px;">Error: No se encontró el motor de SculptGL (main.js). Asegúrate de que el archivo no esté vacío.</p>';
+            }
+        });
+    </script>
 </body>
 </html>
