@@ -113,6 +113,7 @@ var TR = {
   sculptMove: 'Move',
   sculptLocalScale: 'Local scale',
   sculptTransform: 'Transform (E)',
+  sculptElementSelect: 'Element selection',
 
   sculptCommon: 'Common',
   sculptTool: 'Tool',
@@ -146,6 +147,17 @@ var TR = {
   sculptExtractTitle: 'Extract',
   sculptExtractThickness: 'Thickness',
   sculptExtractAction: 'Extract !',
+  sculptElementSelectMode: 'Element',
+  sculptElementSelectVertex: 'Vertex',
+  sculptElementSelectEdge: 'Edge',
+  sculptElementSelectFace: 'Face',
+  sculptElementSelectAction: 'Action',
+  sculptElementSelectReplace: 'Replace',
+  sculptElementSelectAdd: 'Add',
+  sculptElementSelectRemove: 'Remove',
+  sculptElementSelectAll: 'Select all',
+  sculptElementSelectClear: 'Clear selection',
+  sculptElementSelectInvert: 'Invert selection',
 
   // states
   stateTitle: 'History',
