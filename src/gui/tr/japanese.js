@@ -51,6 +51,7 @@ var TR = {
   sceneAddSphere: null,
   sceneAddCube: null,
   sceneAddCylinder: null,
+  sceneAddPlane: null,
   sceneAddTorus: null,
   sceneSelection: null,
   sceneMerge: null,

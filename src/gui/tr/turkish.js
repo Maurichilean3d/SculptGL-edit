@@ -52,6 +52,7 @@ var TR = {
   sceneAddSphere: 'Küre ekle',
   sceneAddCube: 'Küp ekle',
   sceneAddCylinder: 'Silindir ekle',
+  sceneAddPlane: 'Düzlem ekle',
   sceneAddTorus: 'Halka ekle',
   sceneSelection: 'Seçim',
   sceneMerge: 'Seçimi birleştir',

@@ -52,6 +52,7 @@ var TR = {
   sceneAddSphere: '加入球體',
   sceneAddCube: '加入立方體',
   sceneAddCylinder: '加入圓柱',
+  sceneAddPlane: '加入平面',
   sceneAddTorus: '加入圓環',
   sceneSelection: '選取項目',
   sceneMerge: '合併選取項目',
