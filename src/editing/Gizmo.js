@@ -220,6 +220,8 @@ class Gizmo {
 
   setSpaceMode(mode) {
     this._spaceMode = mode;
+    this._updateMatrices();
+    this._main.render();
   }
 
   _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
@@ -466,11 +468,16 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage view arc alignment
-    var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-    vec3.normalize(eyeDir, eyeDir);
-    vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
-    vec3.normalize(eyeDir, eyeDir);
-    this._updateArcRotation(eyeDir);
+    if (this._spaceMode === SPACE_WORLD) {
+      var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+      vec3.normalize(eyeDir, eyeDir);
+      vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+      vec3.normalize(eyeDir, eyeDir);
+      this._updateArcRotation(eyeDir);
+    } else {
+      mat4.identity(this._rotW._baseMatrix);
+      mat4.identity(this._scaleW._baseMatrix);
+    }
 
     var traScaleSpace = mat4.create();
     mat4.mul(traScaleSpace, traScale, this._spaceMatrix);
@@ -786,11 +793,12 @@ class Gizmo {
     for (var i = 0; i < meshes.length; ++i) {
       var edim = meshes[i].getEditMatrix();
       mat4.identity(edim);
-      mat4.scale(edim, edim, inter);
-
       if (this._spaceMode !== SPACE_WORLD) {
         mat4.mul(edim, this._spaceMatrix, edim);
+        mat4.scale(edim, edim, inter);
         mat4.mul(edim, edim, this._spaceMatrixInv);
+      } else {
+        mat4.scale(edim, edim, inter);
       }
 
       this._scaleRotateEditMatrix(edim, i);
