@@ -2,22 +2,29 @@
 Entrada del sitio para despliegue en GitHub Pages.
 Redirige correctamente al directorio /app respetando el nombre del repositorio.
 -->
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SculptGL</title>
-  <script>
-    (function () {
-      var path = window.location.pathname;
-      if (!path.endsWith('/')) path += '/';
-      window.location.replace(path + 'app/');
-    })();
-  </script>
-</head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SculptGL Edit - Funcional</title>
+    <link rel="stylesheet" href="app/css/style.css"> </head>
 <body>
-  <p>Redirecting to SculptGL…</p>
-  <p>If nothing happens, <a href="./app/">click here</a>.</p>
+    <canvas id="canvas"></canvas>
+    
+    <script src="lib/jquery.js"></script>
+    <script src="lib/gl-matrix.js"></script>
+    
+    <script src="main.js"></script>
+
+    <script>
+        // Script de inicialización rápida si el main.js no lo hace automáticamente
+        window.addEventListener('load', function() {
+            if (typeof SculptGL !== 'undefined') {
+                var app = new SculptGL();
+                app.start();
+            }
+        });
+    </script>
 </body>
 </html>
