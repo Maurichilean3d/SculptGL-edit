@@ -206,6 +206,8 @@ class Gizmo {
     this._spaceMode = SPACE_WORLD;
     this._spaceMatrix = mat4.create();
     this._spaceMatrixInv = mat4.create();
+    this._staticNormal = vec3.create();
+    this._hasStaticNormal = false;
 
     this._initTranslate();
     this._initRotate();
@@ -265,9 +267,14 @@ class Gizmo {
       return;
     }
 
-    var picking = this._main.getPicking();
-    picking.computePickedNormal();
-    var normal = picking.getPickedNormal();
+    var normal;
+    if (this._isEditing && this._hasStaticNormal) {
+      normal = this._staticNormal;
+    } else {
+      var picking = this._main.getPicking();
+      picking.computePickedNormal();
+      normal = picking.getPickedNormal();
+    }
     var normalLen = vec3.len(normal);
     if (normalLen === 0.0) {
       // Fallback a modo LOCAL cuando no hay normal válida
@@ -900,6 +907,15 @@ class Gizmo {
     if (!sel) return false;
 
     this._isEditing = true;
+    if (this._spaceMode === SPACE_NORMAL) {
+      var picking = this._main.getPicking();
+      picking.computePickedNormal();
+      var normal = picking.getPickedNormal();
+      vec3.copy(this._staticNormal, normal);
+      this._hasStaticNormal = vec3.len(this._staticNormal) !== 0.0;
+    } else {
+      this._hasStaticNormal = false;
+    }
     var type = sel._type;
     this._saveEditMatrices();
 
@@ -913,6 +929,7 @@ class Gizmo {
 
   onMouseUp() {
     this._isEditing = false;
+    this._hasStaticNormal = false;
   }
 }
 
