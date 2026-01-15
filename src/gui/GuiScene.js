@@ -39,6 +39,12 @@ class GuiScene {
 
     // selection stuffs
     menu.addTitle(TR('sceneSelection'));
+    menu.addButton(TR('sceneSelectAll'), this, 'selectAll');
+    menu.addButton(TR('sceneSelectNone'), this, 'selectNone');
+    menu.addButton(TR('sceneSelectInvert'), this, 'invertSelection');
+    menu.addButton(TR('sceneSelectPrevious'), this, 'selectPrevious');
+    menu.addButton(TR('sceneSelectNext'), this, 'selectNext');
+    this._ctrlMultiSelect = menu.addCheckbox(TR('sceneSelectMulti'), this._main.isMultiSelectionEnabled(), this.onMultiSelect.bind(this));
     this._ctrlIsolate = menu.addCheckbox(TR('renderingIsolate'), false, this.showHide.bind(this));
     this._ctrlIsolate.setVisibility(false);
     this._ctrlMerge = menu.addButton(TR('sceneMerge'), this, 'merge');
@@ -76,6 +82,30 @@ class GuiScene {
 
   deleteSelection() {
     this._main.deleteCurrentSelection();
+  }
+
+  selectAll() {
+    this._main.selectAllMeshes();
+  }
+
+  selectNone() {
+    this._main.clearSelectionMeshes();
+  }
+
+  invertSelection() {
+    this._main.invertSelectionMeshes();
+  }
+
+  selectNext() {
+    this._main.selectNextMesh();
+  }
+
+  selectPrevious() {
+    this._main.selectPreviousMesh();
+  }
+
+  onMultiSelect(val) {
+    this._main.setMultiSelectionEnabled(val);
   }
 
   validatePreview() {
