@@ -65,6 +65,7 @@ class SculptManager {
     case Enums.Tools.DRAG:
     case Enums.Tools.LOCALSCALE:
     case Enums.Tools.TRANSFORM:
+    case Enums.Tools.ELEMENTSELECT:
       return false;
     default:
       return true;
