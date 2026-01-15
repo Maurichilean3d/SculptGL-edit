@@ -9,6 +9,12 @@ Redirige o encamina al directorio de la aplicación real dentro del proyecto.
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="refresh" content="0; url=app/" />
   <title>SculptGL</title>
+  <script>
+    const target = new URL('app/', window.location.href);
+    if (window.location.href !== target.href) {
+      window.location.replace(target.href);
+    }
+  </script>
 </head>
 <body>
   <p>If you are not redirected, <a href="app/">open SculptGL</a>.</p>
