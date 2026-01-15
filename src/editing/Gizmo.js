@@ -268,8 +268,15 @@ class Gizmo {
     var normal = picking.getPickedNormal();
     var normalLen = vec3.len(normal);
     if (normalLen === 0.0) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
+      // Fallback a modo LOCAL cuando no hay normal válida
+      var m = mesh.getMatrix();
+      var xAxis = vec3.fromValues(m[0], m[1], m[2]);
+      var yAxis = vec3.fromValues(m[4], m[5], m[6]);
+      var zAxis = vec3.fromValues(m[8], m[9], m[10]);
+      vec3.normalize(xAxis, xAxis);
+      vec3.normalize(yAxis, yAxis);
+      vec3.normalize(zAxis, zAxis);
+      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
       return;
     }
 
@@ -470,18 +477,17 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage arc stuffs
-    // En modo LOCAL, alinear círculos con los ejes del mesh (sin seguir la cámara)
-    if (this._spaceMode === SPACE_LOCAL) {
-      // Establecer matrices de identidad para que se alineen con los ejes locales
+    // En modo LOCAL o NORMAL, alinear círculos con los ejes del espacio (sin seguir la cámara)
+    if (this._spaceMode === SPACE_LOCAL || this._spaceMode === SPACE_NORMAL) {
+      // Establecer matrices de identidad para que se alineen con los ejes del espacio
       mat4.identity(this._rotX._baseMatrix);
       mat4.identity(this._rotY._baseMatrix);
       mat4.identity(this._rotZ._baseMatrix);
       mat4.identity(this._rotW._baseMatrix);
       mat4.identity(this._scaleW._baseMatrix);
     } else {
+      // En modo WORLD, los círculos siguen la cámara
       var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-      vec3.normalize(eyeDir, eyeDir);
-      vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
       vec3.normalize(eyeDir, eyeDir);
       this._updateArcRotation(eyeDir);
     }
