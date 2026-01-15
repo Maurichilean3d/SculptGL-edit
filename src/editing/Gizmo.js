@@ -470,11 +470,17 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage arc stuffs
-    var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-    vec3.normalize(eyeDir, eyeDir);
-    vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
-    vec3.normalize(eyeDir, eyeDir);
-    this._updateArcRotation(eyeDir);
+    // En modo LOCAL, no rotar los círculos según la cámara
+    if (this._spaceMode === SPACE_LOCAL) {
+      // Usar ejes alineados con el espacio local (sin seguir la cámara)
+      this._updateArcRotation([0.0, 0.0, 1.0]);
+    } else {
+      var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+      vec3.normalize(eyeDir, eyeDir);
+      vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+      vec3.normalize(eyeDir, eyeDir);
+      this._updateArcRotation(eyeDir);
+    }
 
     var traScaleSpace = mat4.create();
     mat4.mul(traScaleSpace, traScale, this._spaceMatrix);
