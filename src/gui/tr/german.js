@@ -52,6 +52,7 @@ var TR = {
   sceneAddSphere: 'Kugel hinzufügen',
   sceneAddCube: 'Würfel hinzufügen',
   sceneAddCylinder: 'Zylinder hinzufügen',
+  sceneAddPlane: 'Ebene hinzufügen',
   sceneAddTorus: 'Torus hinzufügen',
   sceneSelection: 'Auswahl',
   sceneMerge: 'Auswahl zusammenführen',

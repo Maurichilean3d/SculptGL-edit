@@ -525,6 +525,14 @@ class Scene {
     return this.addNewMesh(mesh);
   }
 
+  addPlane() {
+    var mesh = new Multimesh(Primitives.createPlane(this._gl));
+    mesh.normalizeSize();
+    mat4.scale(mesh.getMatrix(), mesh.getMatrix(), [0.7, 0.7, 0.7]);
+    this.subdivideClamp(mesh, true);
+    return this.addNewMesh(mesh);
+  }
+
   addTorus(preview) {
     var mesh = new Multimesh(Primitives.createTorus(this._gl, this._torusLength, this._torusWidth, this._torusRadius, this._torusRadial, this._torusTubular));
     if (preview) {

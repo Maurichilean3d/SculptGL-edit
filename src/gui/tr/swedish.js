@@ -52,6 +52,7 @@ var TR = {
   sceneAddSphere: 'Lägg till sfär',
   sceneAddCube: 'Lägg till kub',
   sceneAddCylinder: 'Lägg till cylinder',
+  sceneAddPlane: 'Lägg till plan',
   sceneAddTorus: 'Lägg till torus',
   sceneSelection: 'Urval',
   sceneMerge: 'Sammanfoga urval',
