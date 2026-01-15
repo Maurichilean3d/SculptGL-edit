@@ -291,4 +291,31 @@ GuiTools[Enums.Tools.TRANSFORM] = {
   init: function () {}
 };
 
+GuiTools[Enums.Tools.ELEMENTSELECT] = {
+  _ctrls: [],
+  init: function (tool, fold) {
+    var modeOptions = [];
+    modeOptions[tool.constructor.Mode.VERTEX] = TR('sculptElementSelectVertex');
+    modeOptions[tool.constructor.Mode.EDGE] = TR('sculptElementSelectEdge');
+    modeOptions[tool.constructor.Mode.FACE] = TR('sculptElementSelectFace');
+    modeOptions[tool.constructor.Mode.BODY] = TR('sculptElementSelectBody');
+
+    var actionOptions = [];
+    actionOptions[tool.constructor.Action.REPLACE] = TR('sculptElementSelectReplace');
+    actionOptions[tool.constructor.Action.ADD] = TR('sculptElementSelectAdd');
+    actionOptions[tool.constructor.Action.REMOVE] = TR('sculptElementSelectRemove');
+
+    this._ctrls.push(fold.addCombobox(TR('sculptElementSelectMode'), tool._selectionMode, function (val) {
+      tool._selectionMode = val;
+    }, modeOptions));
+    this._ctrls.push(fold.addCombobox(TR('sculptElementSelectAction'), tool._selectionAction, function (val) {
+      tool._selectionAction = val;
+    }, actionOptions));
+
+    this._ctrls.push(fold.addButton(TR('sculptElementSelectAll'), tool, 'selectAll'));
+    this._ctrls.push(fold.addButton(TR('sculptElementSelectClear'), tool, 'clearSelection'));
+    this._ctrls.push(fold.addButton(TR('sculptElementSelectInvert'), tool, 'invertSelection'));
+  }
+};
+
 export default GuiSculptingTools;
