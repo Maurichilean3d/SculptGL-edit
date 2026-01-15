@@ -32,7 +32,6 @@ class ElementSelection extends SculptBase {
 
     this._main.getStateManager().pushStateColorAndMaterial(mesh);
     this.applySelection(mesh, picking);
-    this.applySymmetrySelection(mesh, picking);
     this.updateRender();
     this._lastMouseX = main._mouseX;
     this._lastMouseY = main._mouseY;
@@ -70,25 +69,6 @@ class ElementSelection extends SculptBase {
     var targetValue = this._selectionAction === ElementSelection.Action.REMOVE ? 0.0 : 1.0;
     for (var j = 0, nb = verts.length; j < nb; ++j)
       mAr[verts[j] * 3 + 2] = targetValue;
-  }
-
-  applySymmetrySelection(mesh, picking) {
-    if (!this._main.getSculptManager().getSymmetry())
-      return;
-
-    var pickingSym = this._main.getPickingSymmetry();
-    pickingSym.intersectionMouseMesh(mesh);
-    if (pickingSym.getPickedFace() === -1)
-      return;
-
-    var verts = this.getSelectionVertices(mesh, pickingSym);
-    if (!verts.length)
-      return;
-
-    var mAr = mesh.getMaterials();
-    var targetValue = this._selectionAction === ElementSelection.Action.REMOVE ? 0.0 : 1.0;
-    for (var i = 0, nb = verts.length; i < nb; ++i)
-      mAr[verts[i] * 3 + 2] = targetValue;
   }
 
   getSelectionVertices(mesh, picking) {
