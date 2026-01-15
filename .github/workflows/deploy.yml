@@ -2,7 +2,7 @@ name: Deploy SculptGL to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # O el nombre de tu rama principal
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -17,10 +17,11 @@ jobs:
       - name: Install and Build
         run: |
           npm install
-          npm run release # Esto genera los archivos finales en la carpeta app/ o build/
+          NODE_OPTIONS=--openssl-legacy-provider npm run release
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: app # SculptGL suele poner el resultado en 'app'
-          branch: gh-pages # Se creará una rama nueva con el sitio listo
+          folder: . # Desplegar toda la raíz (incluye index.html y la carpeta app/)
+          branch: gh-pages
+          clean: true
