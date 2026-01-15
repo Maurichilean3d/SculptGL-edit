@@ -279,14 +279,29 @@ class Gizmo {
     vec3.transformMat4(nWorld, nWorld, normalMatrix);
     vec3.normalize(nWorld, nWorld);
 
-    var camera = this._main.getCamera();
-    var eye = camera.computePosition();
-    var eyeDir = vec3.sub(vec3.create(), eye, center);
-    vec3.normalize(eyeDir, eyeDir);
+    // Usar los ejes del mesh en lugar de la posición de la cámara
+    var m = mesh.getMatrix();
+    var meshXAxis = vec3.fromValues(m[0], m[1], m[2]);
+    var meshYAxis = vec3.fromValues(m[4], m[5], m[6]);
+    vec3.normalize(meshXAxis, meshXAxis);
+    vec3.normalize(meshYAxis, meshYAxis);
 
-    var xAxis = vec3.cross(vec3.create(), eyeDir, nWorld);
-    if (vec3.len(xAxis) === 0.0) xAxis = vec3.cross(xAxis, [0.0, 1.0, 0.0], nWorld);
+    // Determinar qué eje del mesh usar como base para el eje X del gizmo
+    // Usar el eje del mesh que sea más perpendicular a la normal
+    var dotX = Math.abs(vec3.dot(meshXAxis, nWorld));
+    var dotY = Math.abs(vec3.dot(meshYAxis, nWorld));
+    var baseAxis = dotX < dotY ? meshXAxis : meshYAxis;
+
+    // Calcular eje X del gizmo perpendicular a la normal
+    var xAxis = vec3.cross(vec3.create(), baseAxis, nWorld);
+    if (vec3.len(xAxis) === 0.0) {
+      // Si son paralelos, usar el otro eje del mesh
+      baseAxis = dotX < dotY ? meshYAxis : meshXAxis;
+      xAxis = vec3.cross(xAxis, baseAxis, nWorld);
+    }
     vec3.normalize(xAxis, xAxis);
+
+    // Calcular eje Y perpendicular a la normal y al eje X
     var yAxis = vec3.cross(vec3.create(), nWorld, xAxis);
     vec3.normalize(yAxis, yAxis);
     this._setSpaceMatrixFromAxes(xAxis, yAxis, nWorld);
