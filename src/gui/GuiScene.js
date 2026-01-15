@@ -40,7 +40,6 @@ class GuiScene {
     // selection stuffs
     menu.addTitle(TR('sceneSelection'));
     menu.addButton(TR('sceneSelectAll'), this, 'selectAll');
-    menu.addButton(TR('sceneSelectNone'), this, 'selectNone');
     menu.addButton(TR('sceneSelectInvert'), this, 'invertSelection');
     menu.addButton(TR('sceneSelectPrevious'), this, 'selectPrevious');
     menu.addButton(TR('sceneSelectNext'), this, 'selectNext');
@@ -86,10 +85,6 @@ class GuiScene {
 
   selectAll() {
     this._main.selectAllMeshes();
-  }
-
-  selectNone() {
-    this._main.clearSelectionMeshes();
   }
 
   invertSelection() {

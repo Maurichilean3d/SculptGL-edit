@@ -56,7 +56,6 @@ var TR = {
   sceneAddTorus: 'Add torus',
   sceneSelection: 'Selection',
   sceneSelectAll: 'Select all',
-  sceneSelectNone: 'Select none',
   sceneSelectInvert: 'Invert selection',
   sceneSelectPrevious: 'Select previous',
   sceneSelectNext: 'Select next',

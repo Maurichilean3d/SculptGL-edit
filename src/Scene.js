@@ -257,10 +257,6 @@ class Scene {
     this.setSelectionMeshes(this._meshes, this._mesh);
   }
 
-  clearSelectionMeshes() {
-    this.setSelectionMeshes([], null);
-  }
-
   invertSelectionMeshes() {
     var meshes = this._meshes;
     if (meshes.length === 0) return;
