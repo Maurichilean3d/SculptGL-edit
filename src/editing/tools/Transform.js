@@ -6,12 +6,46 @@ import { vec3, mat4 } from 'gl-matrix';
 import Gizmo from 'editing/Gizmo';
 import SculptBase from 'editing/tools/SculptBase';
 
+var Mode = {
+  TRANSLATE: 0,
+  ROTATE: 1,
+  SCALE: 2
+};
+
+var Axis = {
+  ALL: 0,
+  X: 1,
+  Y: 2,
+  Z: 3
+};
+
+var Space = {
+  WORLD: 0,
+  LOCAL: 1,
+  NORMAL: 2
+};
+
 class Transform extends SculptBase {
+  static get Mode() {
+    return Mode;
+  }
+
+  static get Axis() {
+    return Axis;
+  }
+
+  static get Space() {
+    return Space;
+  }
 
   constructor(main) {
     super(main);
 
     this._gizmo = new Gizmo(main);
+    this._gizmoMode = Mode.TRANSLATE;
+    this._gizmoAxis = Axis.ALL;
+    this._gizmoSpace = Space.WORLD;
+    this._updateGizmo();
   }
 
   isIdentity(m) {
@@ -101,6 +135,52 @@ class Transform extends SculptBase {
   }
 
   update() {}
+
+  _updateGizmo() {
+    var type = 0;
+    switch (this._gizmoMode) {
+    case Mode.TRANSLATE:
+      if (this._gizmoAxis === Axis.ALL) type = Gizmo.TRANS_XYZ | Gizmo.PLANE_XYZ;
+      else if (this._gizmoAxis === Axis.X) type = Gizmo.TRANS_X;
+      else if (this._gizmoAxis === Axis.Y) type = Gizmo.TRANS_Y;
+      else if (this._gizmoAxis === Axis.Z) type = Gizmo.TRANS_Z;
+      break;
+    case Mode.ROTATE:
+      if (this._gizmoAxis === Axis.ALL) type = Gizmo.ROT_XYZ | Gizmo.ROT_W;
+      else if (this._gizmoAxis === Axis.X) type = Gizmo.ROT_X;
+      else if (this._gizmoAxis === Axis.Y) type = Gizmo.ROT_Y;
+      else if (this._gizmoAxis === Axis.Z) type = Gizmo.ROT_Z;
+      break;
+    case Mode.SCALE:
+      if (this._gizmoAxis === Axis.ALL) type = Gizmo.SCALE_XYZW;
+      else if (this._gizmoAxis === Axis.X) type = Gizmo.SCALE_X;
+      else if (this._gizmoAxis === Axis.Y) type = Gizmo.SCALE_Y;
+      else if (this._gizmoAxis === Axis.Z) type = Gizmo.SCALE_Z;
+      break;
+    default:
+      type = Gizmo.TRANS_XYZ | Gizmo.PLANE_XYZ;
+    }
+    this._gizmo.setActivatedType(type);
+    this._gizmo.setSpaceMode(this._gizmoSpace);
+  }
+
+  setGizmoMode(mode) {
+    this._gizmoMode = mode;
+    this._updateGizmo();
+    this._main.render();
+  }
+
+  setGizmoAxis(axis) {
+    this._gizmoAxis = axis;
+    this._updateGizmo();
+    this._main.render();
+  }
+
+  setGizmoSpace(space) {
+    this._gizmoSpace = space;
+    this._updateGizmo();
+    this._main.render();
+  }
 
   postRender() {
     if (this.getMesh())

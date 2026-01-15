@@ -74,6 +74,10 @@ var ROT_XYZ = ROT_X | ROT_Y | ROT_Z;
 var PLANE_XYZ = PLANE_X | PLANE_Y | PLANE_Z;
 var SCALE_XYZW = SCALE_X | SCALE_Y | SCALE_Z | SCALE_W;
 
+var SPACE_WORLD = 0;
+var SPACE_LOCAL = 1;
+var SPACE_NORMAL = 2;
+
 class Gizmo {
   static get TRANS_X() {
     return TRANS_X;
@@ -129,6 +133,18 @@ class Gizmo {
   }
   static get SCALE_XYZW() {
     return SCALE_XYZW;
+  }
+
+  static get SPACE_WORLD() {
+    return SPACE_WORLD;
+  }
+
+  static get SPACE_LOCAL() {
+    return SPACE_LOCAL;
+  }
+
+  static get SPACE_NORMAL() {
+    return SPACE_NORMAL;
   }
 
   constructor(main) {
@@ -187,6 +203,10 @@ class Gizmo {
     this._editTransInv = mat4.create();
     this._editScaleRotInv = [];
 
+    this._spaceMode = SPACE_WORLD;
+    this._spaceMatrix = mat4.create();
+    this._spaceMatrixInv = mat4.create();
+
     this._initTranslate();
     this._initRotate();
     this._initScale();
@@ -196,6 +216,80 @@ class Gizmo {
   setActivatedType(type) {
     this._activatedType = type;
     this._initPickables();
+  }
+
+  setSpaceMode(mode) {
+    this._spaceMode = mode;
+  }
+
+  _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
+    var spaceMat = this._spaceMatrix;
+    mat4.identity(spaceMat);
+    spaceMat[0] = xAxis[0];
+    spaceMat[1] = xAxis[1];
+    spaceMat[2] = xAxis[2];
+    spaceMat[4] = yAxis[0];
+    spaceMat[5] = yAxis[1];
+    spaceMat[6] = yAxis[2];
+    spaceMat[8] = zAxis[0];
+    spaceMat[9] = zAxis[1];
+    spaceMat[10] = zAxis[2];
+    mat4.invert(this._spaceMatrixInv, spaceMat);
+  }
+
+  _updateSpaceMatrices(center) {
+    if (this._spaceMode === SPACE_WORLD) {
+      mat4.identity(this._spaceMatrix);
+      mat4.identity(this._spaceMatrixInv);
+      return;
+    }
+
+    var mesh = this._main.getSelectedMeshes()[0] || this._main.getMesh();
+    if (!mesh) {
+      mat4.identity(this._spaceMatrix);
+      mat4.identity(this._spaceMatrixInv);
+      return;
+    }
+
+    if (this._spaceMode === SPACE_LOCAL) {
+      var m = mesh.getMatrix();
+      var xAxis = vec3.fromValues(m[0], m[1], m[2]);
+      var yAxis = vec3.fromValues(m[4], m[5], m[6]);
+      var zAxis = vec3.fromValues(m[8], m[9], m[10]);
+      vec3.normalize(xAxis, xAxis);
+      vec3.normalize(yAxis, yAxis);
+      vec3.normalize(zAxis, zAxis);
+      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
+      return;
+    }
+
+    var picking = this._main.getPicking();
+    picking.computePickedNormal();
+    var normal = picking.getPickedNormal();
+    var normalLen = vec3.len(normal);
+    if (normalLen === 0.0) {
+      mat4.identity(this._spaceMatrix);
+      mat4.identity(this._spaceMatrixInv);
+      return;
+    }
+
+    var nWorld = vec3.fromValues(normal[0], normal[1], normal[2]);
+    var normalMatrix = mat4.clone(mesh.getMatrix());
+    normalMatrix[12] = normalMatrix[13] = normalMatrix[14] = 0.0;
+    vec3.transformMat4(nWorld, nWorld, normalMatrix);
+    vec3.normalize(nWorld, nWorld);
+
+    var camera = this._main.getCamera();
+    var eye = camera.computePosition();
+    var eyeDir = vec3.sub(vec3.create(), eye, center);
+    vec3.normalize(eyeDir, eyeDir);
+
+    var xAxis = vec3.cross(vec3.create(), eyeDir, nWorld);
+    if (vec3.len(xAxis) === 0.0) xAxis = vec3.cross(xAxis, [0.0, 1.0, 0.0], nWorld);
+    vec3.normalize(xAxis, xAxis);
+    var yAxis = vec3.cross(vec3.create(), nWorld, xAxis);
+    vec3.normalize(yAxis, yAxis);
+    this._setSpaceMatrixFromAxes(xAxis, yAxis, nWorld);
   }
 
   _initPickables() {
@@ -351,6 +445,8 @@ class Gizmo {
     var trMesh = this._computeCenterGizmo();
     var eye = camera.computePosition();
 
+    this._updateSpaceMatrices(trMesh);
+
     this._lastDistToEye = this._isEditing ? this._lastDistToEye : vec3.dist(eye, trMesh);
     var scaleFactor = (this._lastDistToEye * GIZMO_SIZE) / camera.getConstantScreen();
 
@@ -359,25 +455,32 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage arc stuffs
-    this._updateArcRotation(vec3.normalize(eye, vec3.sub(eye, trMesh, eye)));
+    var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+    vec3.normalize(eyeDir, eyeDir);
+    vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+    vec3.normalize(eyeDir, eyeDir);
+    this._updateArcRotation(eyeDir);
 
-    this._transX.updateFinalMatrix(traScale);
-    this._transY.updateFinalMatrix(traScale);
-    this._transZ.updateFinalMatrix(traScale);
+    var traScaleSpace = mat4.create();
+    mat4.mul(traScaleSpace, traScale, this._spaceMatrix);
 
-    this._planeX.updateFinalMatrix(traScale);
-    this._planeY.updateFinalMatrix(traScale);
-    this._planeZ.updateFinalMatrix(traScale);
+    this._transX.updateFinalMatrix(traScaleSpace);
+    this._transY.updateFinalMatrix(traScaleSpace);
+    this._transZ.updateFinalMatrix(traScaleSpace);
 
-    this._rotX.updateFinalMatrix(traScale);
-    this._rotY.updateFinalMatrix(traScale);
-    this._rotZ.updateFinalMatrix(traScale);
-    this._rotW.updateFinalMatrix(traScale);
+    this._planeX.updateFinalMatrix(traScaleSpace);
+    this._planeY.updateFinalMatrix(traScaleSpace);
+    this._planeZ.updateFinalMatrix(traScaleSpace);
 
-    this._scaleX.updateFinalMatrix(traScale);
-    this._scaleY.updateFinalMatrix(traScale);
-    this._scaleZ.updateFinalMatrix(traScale);
-    this._scaleW.updateFinalMatrix(traScale);
+    this._rotX.updateFinalMatrix(traScaleSpace);
+    this._rotY.updateFinalMatrix(traScaleSpace);
+    this._rotZ.updateFinalMatrix(traScaleSpace);
+    this._rotW.updateFinalMatrix(traScaleSpace);
+
+    this._scaleX.updateFinalMatrix(traScaleSpace);
+    this._scaleY.updateFinalMatrix(traScaleSpace);
+    this._scaleZ.updateFinalMatrix(traScaleSpace);
+    this._scaleW.updateFinalMatrix(traScaleSpace);
   }
 
   _drawGizmo(elt) {
@@ -461,9 +564,11 @@ class Gizmo {
 
     // 3d direction
     var nbAxis = this._selected._nbAxis;
-    if (nbAxis !== -1)
+    if (nbAxis !== -1) {
       // if -1, we don't care about dir vector
       vec3.set(dir, 0.0, 0.0, 0.0)[nbAxis] = 1.0;
+      vec3.transformMat4(dir, dir, this._spaceMatrix);
+    }
     vec3.add(dir, origin, dir);
 
     // project on screen and get a 2D line
@@ -528,6 +633,11 @@ class Gizmo {
       else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
       else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
 
+      if (this._spaceMode !== SPACE_WORLD) {
+        mat4.mul(mrot, this._spaceMatrix, mrot);
+        mat4.mul(mrot, mrot, this._spaceMatrixInv);
+      }
+
       this._scaleRotateEditMatrix(mrot, i);
     }
 
@@ -554,6 +664,8 @@ class Gizmo {
 
     vec3.transformMat4(near, near, this._editTransInv);
     vec3.transformMat4(far, far, this._editTransInv);
+    vec3.transformMat4(near, near, this._spaceMatrixInv);
+    vec3.transformMat4(far, far, this._spaceMatrixInv);
 
     // intersection line line
     vec3.normalize(vec, vec3.sub(vec, far, near));
@@ -568,6 +680,7 @@ class Gizmo {
     var b1 = -vec3.dot(near, inter);
     inter[this._selected._nbAxis] = (a01 * b0 - b1) / det;
 
+    vec3.transformMat4(inter, inter, this._spaceMatrix);
     this._updateMatrixTranslate(inter);
 
     main.render();
@@ -593,6 +706,8 @@ class Gizmo {
 
     vec3.transformMat4(near, near, this._editTransInv);
     vec3.transformMat4(far, far, this._editTransInv);
+    vec3.transformMat4(near, near, this._spaceMatrixInv);
+    vec3.transformMat4(far, far, this._spaceMatrixInv);
 
     // intersection line plane
     var inter = [0.0, 0.0, 0.0];
@@ -609,6 +724,7 @@ class Gizmo {
     inter[1] = near[1] + (far[1] - near[1]) * val;
     inter[2] = near[2] + (far[2] - near[2]) * val;
 
+    vec3.transformMat4(inter, inter, this._spaceMatrix);
     this._updateMatrixTranslate(inter);
 
     main.render();
@@ -660,6 +776,11 @@ class Gizmo {
       var edim = meshes[i].getEditMatrix();
       mat4.identity(edim);
       mat4.scale(edim, edim, inter);
+
+      if (this._spaceMode !== SPACE_WORLD) {
+        mat4.mul(edim, this._spaceMatrix, edim);
+        mat4.mul(edim, edim, this._spaceMatrixInv);
+      }
 
       this._scaleRotateEditMatrix(edim, i);
     }
