@@ -32,7 +32,6 @@ class ElementSelection extends SculptBase {
 
     this._main.getStateManager().pushStateColorAndMaterial(mesh);
     this.applySelection(mesh, picking);
-    this.applySymmetrySelection(mesh, picking);
     this.updateRender();
     this._lastMouseX = main._mouseX;
     this._lastMouseY = main._mouseY;
@@ -72,25 +71,6 @@ class ElementSelection extends SculptBase {
       mAr[verts[j] * 3 + 2] = targetValue;
   }
 
-  applySymmetrySelection(mesh, picking) {
-    if (!this._main.getSculptManager().getSymmetry())
-      return;
-
-    var pickingSym = this._main.getPickingSymmetry();
-    pickingSym.intersectionMouseMesh(mesh);
-    if (pickingSym.getPickedFace() === -1)
-      return;
-
-    var verts = this.getSelectionVertices(mesh, pickingSym);
-    if (!verts.length)
-      return;
-
-    var mAr = mesh.getMaterials();
-    var targetValue = this._selectionAction === ElementSelection.Action.REMOVE ? 0.0 : 1.0;
-    for (var i = 0, nb = verts.length; i < nb; ++i)
-      mAr[verts[i] * 3 + 2] = targetValue;
-  }
-
   getSelectionVertices(mesh, picking) {
     var faceId = picking.getPickedFace();
     var fAr = mesh.getFaces();
@@ -116,78 +96,9 @@ class ElementSelection extends SculptBase {
     if (this._selectionMode === ElementSelection.Mode.EDGE)
       return this.getClosestEdge(mesh, verts, _TMP_INTER);
 
-    if (this._selectionMode === ElementSelection.Mode.BODY)
-      return this.getBodyVertices(mesh, faceId);
-
     return verts;
   }
 
-  getBodyVertices(mesh, faceId) {
-    var nbFaces = mesh.getNbFaces();
-    var fAr = mesh.getFaces();
-    var vrfStartCount = mesh.getVerticesRingFaceStartCount();
-    var vertRingFace = mesh.getVerticesRingFace();
-    var faceTagFlags = mesh.getFacesTagFlags();
-    var vertTagFlags = mesh.getVerticesTagFlags();
-    var faceTag = ++Utils.TAG_FLAG;
-    var vertTag = ++Utils.TAG_FLAG;
-
-    var queue = new Uint32Array(Utils.getMemory(4 * nbFaces), 0, nbFaces);
-    var head = 0;
-    var tail = 0;
-    queue[tail++] = faceId;
-    faceTagFlags[faceId] = faceTag;
-
-    var nbVertices = mesh.getNbVertices();
-    var pickedVertices = new Uint32Array(Utils.getMemory(4 * nbVertices), 0, nbVertices);
-    var acc = 0;
-
-    while (head < tail) {
-      var curFace = queue[head++];
-      var id = curFace * 4;
-      var v1 = fAr[id];
-      var v2 = fAr[id + 1];
-      var v3 = fAr[id + 2];
-      var v4 = fAr[id + 3];
-      var result = this._addBodyVertex(v1, faceTag, vertTag, faceTagFlags, vertTagFlags, vrfStartCount, vertRingFace, queue, tail, pickedVertices, acc);
-      acc = result.acc;
-      tail = result.tail;
-      result = this._addBodyVertex(v2, faceTag, vertTag, faceTagFlags, vertTagFlags, vrfStartCount, vertRingFace, queue, tail, pickedVertices, acc);
-      acc = result.acc;
-      tail = result.tail;
-      result = this._addBodyVertex(v3, faceTag, vertTag, faceTagFlags, vertTagFlags, vrfStartCount, vertRingFace, queue, tail, pickedVertices, acc);
-      acc = result.acc;
-      tail = result.tail;
-      if (v4 !== Utils.TRI_INDEX) {
-        result = this._addBodyVertex(v4, faceTag, vertTag, faceTagFlags, vertTagFlags, vrfStartCount, vertRingFace, queue, tail, pickedVertices, acc);
-        acc = result.acc;
-        tail = result.tail;
-      }
-    }
-
-    return new Uint32Array(pickedVertices.subarray(0, acc));
-  }
-
-  _addBodyVertex(vertId, faceTag, vertTag, faceTagFlags, vertTagFlags, vrfStartCount, vertRingFace, queue, tail, pickedVertices, acc) {
-    if (vertId === Utils.TRI_INDEX)
-      return { acc: acc, tail: tail };
-
-    if (vertTagFlags[vertId] !== vertTag) {
-      vertTagFlags[vertId] = vertTag;
-      pickedVertices[acc++] = vertId;
-    }
-
-    var start = vrfStartCount[vertId * 2];
-    var end = start + vrfStartCount[vertId * 2 + 1];
-    for (var j = start; j < end; ++j) {
-      var neighFace = vertRingFace[j];
-      if (faceTagFlags[neighFace] === faceTag)
-        continue;
-      faceTagFlags[neighFace] = faceTag;
-      queue[tail++] = neighFace;
-    }
-    return { acc: acc, tail: tail };
-  }
   getClosestVertex(mesh, verts, inter) {
     var vAr = mesh.getVertices();
     var best = verts[0];
@@ -297,8 +208,7 @@ class ElementSelection extends SculptBase {
 ElementSelection.Mode = {
   VERTEX: 0,
   EDGE: 1,
-  FACE: 2,
-  BODY: 3
+  FACE: 2
 };
 
 ElementSelection.Action = {

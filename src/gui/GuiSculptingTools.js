@@ -298,7 +298,6 @@ GuiTools[Enums.Tools.ELEMENTSELECT] = {
     modeOptions[tool.constructor.Mode.VERTEX] = TR('sculptElementSelectVertex');
     modeOptions[tool.constructor.Mode.EDGE] = TR('sculptElementSelectEdge');
     modeOptions[tool.constructor.Mode.FACE] = TR('sculptElementSelectFace');
-    modeOptions[tool.constructor.Mode.BODY] = TR('sculptElementSelectBody');
 
     var actionOptions = [];
     actionOptions[tool.constructor.Action.REPLACE] = TR('sculptElementSelectReplace');

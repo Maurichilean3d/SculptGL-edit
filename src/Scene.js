@@ -63,6 +63,7 @@ class Scene {
     this._meshes = []; // the meshes
     this._selectMeshes = []; // multi selection
     this._mesh = null; // the selected mesh
+    this._multiSelection = false; // allow additive selection without modifiers
 
     this._rttContour = null; // rtt for contour
     this._rttMerge = null; // rtt decode opaque + merge transparent
@@ -186,6 +187,14 @@ class Scene {
     return this.setOrUnsetMesh(mesh);
   }
 
+  isMultiSelectionEnabled() {
+    return this._multiSelection;
+  }
+
+  setMultiSelectionEnabled(enabled) {
+    this._multiSelection = !!enabled;
+  }
+
   setCanvasCursor(style) {
     this._canvas.style.cursor = style;
   }
@@ -223,6 +232,65 @@ class Scene {
     this.getGui().updateMesh();
     this.render();
     return mesh;
+  }
+
+  setSelectionMeshes(meshes, preferredMesh) {
+    this._selectMeshes.length = 0;
+    for (var i = 0, nbMeshes = meshes.length; i < nbMeshes; ++i) {
+      this._selectMeshes.push(meshes[i]);
+    }
+
+    var nextMesh = null;
+    if (preferredMesh && this.getIndexMesh(preferredMesh, true) >= 0) {
+      nextMesh = preferredMesh;
+    } else if (this._selectMeshes.length > 0) {
+      nextMesh = this._selectMeshes[0];
+    }
+
+    this._mesh = nextMesh;
+    this.getGui().updateMesh();
+    this.render();
+  }
+
+  selectAllMeshes() {
+    if (this._meshes.length === 0) return;
+    this.setSelectionMeshes(this._meshes, this._mesh);
+  }
+
+  invertSelectionMeshes() {
+    var meshes = this._meshes;
+    if (meshes.length === 0) return;
+
+    var selected = {};
+    for (var i = 0, nbSel = this._selectMeshes.length; i < nbSel; ++i) {
+      selected[this._selectMeshes[i].getID()] = true;
+    }
+
+    var inverted = [];
+    for (var j = 0, nbMeshes = meshes.length; j < nbMeshes; ++j) {
+      var mesh = meshes[j];
+      if (!selected[mesh.getID()]) inverted.push(mesh);
+    }
+
+    this.setSelectionMeshes(inverted, this._mesh);
+  }
+
+  selectNextMesh() {
+    var meshes = this._meshes;
+    if (meshes.length === 0) return;
+    var index = this._mesh ? this.getIndexMesh(this._mesh) : -1;
+    if (index < 0) index = 0;
+    else index = (index + 1) % meshes.length;
+    this.setMesh(meshes[index]);
+  }
+
+  selectPreviousMesh() {
+    var meshes = this._meshes;
+    if (meshes.length === 0) return;
+    var index = this._mesh ? this.getIndexMesh(this._mesh) : -1;
+    if (index < 0) index = meshes.length - 1;
+    else index = (index - 1 + meshes.length) % meshes.length;
+    this.setMesh(meshes[index]);
   }
 
   renderSelectOverRtt() {
