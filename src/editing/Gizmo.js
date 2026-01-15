@@ -470,10 +470,14 @@ class Gizmo {
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
     // manage arc stuffs
-    // En modo LOCAL, no rotar los círculos según la cámara
+    // En modo LOCAL, alinear círculos con los ejes del mesh (sin seguir la cámara)
     if (this._spaceMode === SPACE_LOCAL) {
-      // Usar ejes alineados con el espacio local (sin seguir la cámara)
-      this._updateArcRotation([0.0, 0.0, 1.0]);
+      // Establecer matrices de identidad para que se alineen con los ejes locales
+      mat4.identity(this._rotX._baseMatrix);
+      mat4.identity(this._rotY._baseMatrix);
+      mat4.identity(this._rotZ._baseMatrix);
+      mat4.identity(this._rotW._baseMatrix);
+      mat4.identity(this._scaleW._baseMatrix);
     } else {
       var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
       vec3.normalize(eyeDir, eyeDir);
