@@ -401,6 +401,9 @@ class Gizmo {
     this._createCircle(this._rotY, Math.PI, COLOR_Y);
     this._createCircle(this._rotZ, Math.PI, COLOR_Z);
     this._createCircle(this._rotW, Math.PI * 2, COLOR_GREY);
+
+    mat4.rotateY(this._rotX._baseMatrix, this._rotX._baseMatrix, Math.PI * 0.5);
+    mat4.rotateX(this._rotY._baseMatrix, this._rotY._baseMatrix, -Math.PI * 0.5);
   }
 
   _createCube(sca, axis, color) {
@@ -423,7 +426,7 @@ class Gizmo {
   }
 
   _updateArcRotation(eye) {
-    // xyz arc
+    // view arc
     _TMP_QUAT[0] = eye[2];
     _TMP_QUAT[1] = 0.0;
     _TMP_QUAT[2] = -eye[0];
@@ -431,20 +434,6 @@ class Gizmo {
     quat.normalize(_TMP_QUAT, _TMP_QUAT);
     mat4.fromQuat(this._rotW._baseMatrix, _TMP_QUAT);
     mat4.fromQuat(this._scaleW._baseMatrix, _TMP_QUAT);
-
-    // x arc
-    quat.rotateZ(_TMP_QUAT, quat.identity(_TMP_QUAT), Math.PI * 0.5);
-    quat.rotateY(_TMP_QUAT, _TMP_QUAT, Math.atan2(-eye[1], -eye[2]));
-    mat4.fromQuat(this._rotX._baseMatrix, _TMP_QUAT);
-
-    // y arc
-    quat.rotateY(_TMP_QUAT, quat.identity(_TMP_QUAT), Math.atan2(-eye[0], -eye[2]));
-    mat4.fromQuat(this._rotY._baseMatrix, _TMP_QUAT);
-
-    // z arc
-    quat.rotateX(_TMP_QUAT, quat.identity(_TMP_QUAT), Math.PI * 0.5);
-    quat.rotateY(_TMP_QUAT, _TMP_QUAT, Math.atan2(-eye[0], eye[1]));
-    mat4.fromQuat(this._rotZ._baseMatrix, _TMP_QUAT);
   }
 
   _computeCenterGizmo(center = [0.0, 0.0, 0.0]) {
@@ -476,21 +465,12 @@ class Gizmo {
     mat4.translate(traScale, traScale, trMesh);
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
-    // manage arc stuffs
-    // En modo LOCAL o NORMAL, alinear círculos con los ejes del espacio (sin seguir la cámara)
-    if (this._spaceMode === SPACE_LOCAL || this._spaceMode === SPACE_NORMAL) {
-      // Establecer matrices de identidad para que se alineen con los ejes del espacio
-      mat4.identity(this._rotX._baseMatrix);
-      mat4.identity(this._rotY._baseMatrix);
-      mat4.identity(this._rotZ._baseMatrix);
-      mat4.identity(this._rotW._baseMatrix);
-      mat4.identity(this._scaleW._baseMatrix);
-    } else {
-      // En modo WORLD, los círculos siguen la cámara
-      var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-      vec3.normalize(eyeDir, eyeDir);
-      this._updateArcRotation(eyeDir);
-    }
+    // manage view arc alignment
+    var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+    vec3.normalize(eyeDir, eyeDir);
+    vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+    vec3.normalize(eyeDir, eyeDir);
+    this._updateArcRotation(eyeDir);
 
     var traScaleSpace = mat4.create();
     mat4.mul(traScaleSpace, traScale, this._spaceMatrix);
