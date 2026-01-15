@@ -432,7 +432,7 @@ class SculptGL extends Scene {
 
     var canEdit = false;
     if (button === MOUSE_LEFT)
-      canEdit = this._sculptManager.start(event.shiftKey);
+      canEdit = this._sculptManager.start(event.shiftKey || this._multiSelection);
 
     if (button === MOUSE_LEFT && canEdit)
       this.setCanvasCursor('none');
