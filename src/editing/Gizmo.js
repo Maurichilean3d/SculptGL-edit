@@ -654,13 +654,16 @@ class Gizmo {
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
       mat4.identity(mrot);
-      if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-      else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-      else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-
       if (this._spaceMode !== SPACE_WORLD) {
-        mat4.mul(mrot, this._spaceMatrix, mrot);
+        mat4.copy(mrot, this._spaceMatrix);
+        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
+        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
+        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
         mat4.mul(mrot, mrot, this._spaceMatrixInv);
+      } else {
+        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
+        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
+        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
       }
 
       this._scaleRotateEditMatrix(mrot, i);
@@ -845,7 +848,7 @@ class Gizmo {
   }
 
   render() {
-    this._updateMatrices();
+    if (!this._isEditing) this._updateMatrices();
 
     var type = this._isEditing && this._selected ? this._selected._type : this._activatedType;
 
