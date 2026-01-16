@@ -588,7 +588,7 @@ class Gizmo {
     vec3.set(dir, -sign * lastInter[2], -sign * lastInter[1], sign * lastInter[0]);
     var rotateMat = mat4.clone(this._selected._finalMatrix);
     rotateMat[12] = rotateMat[13] = rotateMat[14] = 0.0;
-    if (this._spaceMode !== SPACE_WORLD && this._selected._nbAxis !== -1) {
+    if (this._spaceMode !== SPACE_WORLD) {
       vec3.transformMat4(dir, dir, this._spaceMatrix);
     }
     vec3.transformMat4(dir, dir, rotateMat);
@@ -673,11 +673,7 @@ class Gizmo {
     var nbAxis = this._selected._nbAxis;
 
     var axis = [0.0, 0.0, 0.0];
-    if (nbAxis === -1) {
-      var center = this._computeCenterGizmo();
-      var eye = main.getCamera().computePosition();
-      vec3.normalize(axis, vec3.sub(axis, eye, center));
-    } else if (this._spaceMode === SPACE_WORLD) {
+    if (this._spaceMode === SPACE_WORLD) {
       axis[nbAxis] = 1.0;
     } else {
       axis[0] = this._spaceMatrix[nbAxis * 4];
@@ -691,7 +687,18 @@ class Gizmo {
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
-      mat4.fromQuat(mrot, qrot);
+      mat4.identity(mrot);
+      if (this._spaceMode !== SPACE_WORLD) {
+        mat4.copy(mrot, this._spaceMatrix);
+        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
+        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
+        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
+        mat4.mul(mrot, mrot, this._spaceMatrixInv);
+      } else {
+        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
+        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
+        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
+      }
 
       this._scaleRotateEditMatrix(mrot, i);
     }
@@ -875,7 +882,7 @@ class Gizmo {
   }
 
   render() {
-    this._updateMatrices();
+    if (!this._isEditing) this._updateMatrices();
 
     var type = this._isEditing && this._selected ? this._selected._type : this._activatedType;
 
