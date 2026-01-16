@@ -2,14 +2,14 @@ import { vec2, vec3, mat4, quat } from 'gl-matrix';
 import Primitives from 'drawables/Primitives';
 import Enums from 'misc/Enums';
 
-// Configuración de colores estándar (RGB = XYZ)
+// Configuración de colores
 var COLOR_X = vec3.fromValues(0.7, 0.2, 0.2); // Rojo
 var COLOR_Y = vec3.fromValues(0.2, 0.7, 0.2); // Verde
 var COLOR_Z = vec3.fromValues(0.2, 0.2, 0.7); // Azul
 var COLOR_GREY = vec3.fromValues(0.4, 0.4, 0.4);
 var COLOR_SW = vec3.fromValues(0.8, 0.4, 0.2);
 
-// Dimensiones del Gizmo
+// Dimensiones
 var GIZMO_SIZE = 80.0;
 var ARROW_LENGTH = 2.5;
 var ARROW_CONE_THICK = 6.0;
@@ -28,7 +28,7 @@ var createGizmo = function (type, nbAxis = -1) {
     _finalMatrix: mat4.create(),
     _baseMatrix: mat4.create(),
     _color: vec3.create(),
-    _colorSelect: vec3.fromValues(1.0, 1.0, 0.0), // Amarillo al seleccionar
+    _colorSelect: vec3.fromValues(1.0, 1.0, 0.0),
     _drawGeo: null,
     _pickGeo: null,
     _isSelected: false,
@@ -45,7 +45,7 @@ var createGizmo = function (type, nbAxis = -1) {
   };
 };
 
-// Máscaras de edición
+// Máscaras
 var TRANS_X = 1 << 0;
 var TRANS_Y = 1 << 1;
 var TRANS_Z = 1 << 2;
@@ -101,7 +101,6 @@ class Gizmo {
 
     this._activatedType = Gizmo.TRANS_XYZ | Gizmo.ROT_XYZ | Gizmo.PLANE_XYZ | Gizmo.SCALE_XYZW | Gizmo.ROT_W;
 
-    // Inicialización de componentes (X=0, Y=1, Z=2)
     this._transX = createGizmo(Gizmo.TRANS_X, 0);
     this._transY = createGizmo(Gizmo.TRANS_Y, 1);
     this._transZ = createGizmo(Gizmo.TRANS_Z, 2);
@@ -145,7 +144,7 @@ class Gizmo {
     this._staticNormal = vec3.create();
     this._hasStaticNormal = false;
 
-    // PIVOTE PERSONALIZADO
+    // Pivote Personalizado
     this._customPivotOffset = vec3.create();
     this._useCustomPivot = false;
 
@@ -269,7 +268,6 @@ class Gizmo {
     if (type & SCALE_W) pickables.push(this._scaleW._pickGeo);
   }
 
-  // Helper interno para crear flechas
   _initArrowGeometry(tra) {
     tra._pickGeo = Primitives.createArrow(this._gl, THICKNESS_PICK, ARROW_LENGTH, ARROW_CONE_THICK * 0.4);
     tra._pickGeo._gizmo = tra;
@@ -277,33 +275,32 @@ class Gizmo {
     tra._drawGeo.setShaderType(Enums.Shader.FLAT);
   }
 
-  // Inicialización explícita de traslación (Corrige ejes intercambiados)
   _initTranslate() {
-    // Eje X (Rojo): La flecha primitiva apunta a +Y. Rotamos -90 en Z para que apunte a +X.
+    // CORREGIDO: Las flechas primitivas apuntan a +Y.
+    // X (Rojo): Rotar Z -90 (Y -> X)
     mat4.identity(this._transX._baseMatrix);
     mat4.rotateZ(this._transX._baseMatrix, this._transX._baseMatrix, -Math.PI * 0.5);
     mat4.translate(this._transX._baseMatrix, this._transX._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
     vec3.copy(this._transX._color, COLOR_X);
     this._initArrowGeometry(this._transX);
 
-    // Eje Y (Verde): La flecha primitiva apunta a +Y. No requiere rotación.
+    // Y (Verde): Identidad (Y -> Y)
     mat4.identity(this._transY._baseMatrix);
     mat4.translate(this._transY._baseMatrix, this._transY._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
     vec3.copy(this._transY._color, COLOR_Y);
     this._initArrowGeometry(this._transY);
 
-    // Eje Z (Azul): La flecha primitiva apunta a +Y. Rotamos +90 en X para que apunte a +Z.
+    // Z (Azul): Rotar X +90 (Y -> Z)
     mat4.identity(this._transZ._baseMatrix);
     mat4.rotateX(this._transZ._baseMatrix, this._transZ._baseMatrix, Math.PI * 0.5);
     mat4.translate(this._transZ._baseMatrix, this._transZ._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
     vec3.copy(this._transZ._color, COLOR_Z);
     this._initArrowGeometry(this._transZ);
 
-    // Planos de traslación (Cuadrados pequeños)
     var s = ARROW_LENGTH * 0.2;
-    this._createPlane(this._planeX, COLOR_X, 0.0, s, 0.0, 0.0, 0.0, s); // Plano YZ (Rojo)
-    this._createPlane(this._planeY, COLOR_Y, s, 0.0, 0.0, 0.0, 0.0, s); // Plano XZ (Verde)
-    this._createPlane(this._planeZ, COLOR_Z, s, 0.0, 0.0, 0.0, s, 0.0); // Plano XY (Azul)
+    this._createPlane(this._planeX, COLOR_X, 0.0, s, 0.0, 0.0, 0.0, s);
+    this._createPlane(this._planeY, COLOR_Y, s, 0.0, 0.0, 0.0, 0.0, s);
+    this._createPlane(this._planeZ, COLOR_Z, s, 0.0, 0.0, 0.0, s, 0.0);
   }
 
   _createPlane(pla, color, wx, wy, wz, hx, hy, hz) {
@@ -323,36 +320,34 @@ class Gizmo {
   }
 
   _initRotate() {
-    // Eje X (Rojo): Rotación alrededor de X. El anillo debe estar en el plano YZ.
-    // Primitiva Toroide está en plano XY (Normal Z). Rotar Y +90 -> Normal X.
+    // CORREGIDO: Los Torus primitivos son "Y-Up" (Plano XZ, Normal Y).
+    // Esto causaba la superposición de ejes.
+
+    // X (Rojo): Queremos Normal X. Tenemos Normal Y.
+    // Solución: Rotar Z -90 (Y -> X).
     this._createCircle(this._rotX, Math.PI, COLOR_X);
     mat4.identity(this._rotX._baseMatrix);
-    mat4.rotateY(this._rotX._baseMatrix, this._rotX._baseMatrix, Math.PI * 0.5);
+    mat4.rotateZ(this._rotX._baseMatrix, this._rotX._baseMatrix, -Math.PI * 0.5);
 
-    // Eje Y (Verde): Rotación alrededor de Y. El anillo debe estar en el plano XZ.
-    // Primitiva Toroide en XY (Normal Z). Rotar X -90 -> Normal Y.
+    // Y (Verde): Queremos Normal Y. Tenemos Normal Y.
+    // Solución: Identidad.
     this._createCircle(this._rotY, Math.PI, COLOR_Y);
     mat4.identity(this._rotY._baseMatrix);
-    mat4.rotateX(this._rotY._baseMatrix, this._rotY._baseMatrix, -Math.PI * 0.5);
 
-    // Eje Z (Azul): Rotación alrededor de Z. El anillo debe estar en el plano XY.
-    // Primitiva ya está en XY.
+    // Z (Azul): Queremos Normal Z. Tenemos Normal Y.
+    // Solución: Rotar X +90 (Y -> Z).
     this._createCircle(this._rotZ, Math.PI, COLOR_Z);
     mat4.identity(this._rotZ._baseMatrix);
+    mat4.rotateX(this._rotZ._baseMatrix, this._rotZ._baseMatrix, Math.PI * 0.5);
 
-    // Esfera trackball
     this._createCircle(this._rotW, Math.PI * 2, COLOR_GREY);
   }
 
   _createCube(sca, axis, color) {
     var mat = sca._baseMatrix;
-    // Usamos lógica explicita similar a initTranslate para cubos
     mat4.identity(mat);
-    // Aplicar rotación explicita según el eje deseado
     if(vec3.equals(axis, [0,0,-1])) mat4.rotateZ(mat, mat, -Math.PI * 0.5); // X
     else if(vec3.equals(axis, [1,0,0])) mat4.rotateX(mat, mat, Math.PI * 0.5); // Z
-    // Si es Y (0,1,0) no hacemos nada extra
-    
     mat4.translate(mat, mat, [0.0, ROT_RADIUS, 0.0]);
     vec3.copy(sca._color, color);
     sca._pickGeo = Primitives.createCube(this._gl, CUBE_SIDE_PICK);
@@ -362,9 +357,9 @@ class Gizmo {
   }
 
   _initScale() {
-    this._createCube(this._scaleX, [0.0, 0.0, -1.0], COLOR_X); // Eje X
-    this._createCube(this._scaleY, [0.0, 1.0, 0.0], COLOR_Y);  // Eje Y
-    this._createCube(this._scaleZ, [1.0, 0.0, 0.0], COLOR_Z);  // Eje Z
+    this._createCube(this._scaleX, [0.0, 0.0, -1.0], COLOR_X);
+    this._createCube(this._scaleY, [0.0, 1.0, 0.0], COLOR_Y);
+    this._createCube(this._scaleZ, [1.0, 0.0, 0.0], COLOR_Z);
     this._createCircle(this._scaleW, Math.PI * 2, COLOR_SW, SCALE_RADIUS, 2.0);
   }
 
@@ -489,33 +484,9 @@ class Gizmo {
   _startRotateEdit() {
     var main = this._main;
     var camera = main.getCamera();
-
-    var projCenter = [0.0, 0.0, 0.0];
-    this._computeCenterGizmo(projCenter);
-    vec3.copy(projCenter, camera.project(projCenter));
-
-    var dir = this._editLineDirection;
-    var lastInter = this._selected._lastInter;
-    
-    // Cálculo de tangente visual
-    // nbAxis: 0=X, 1=Y, 2=Z.
-    // Si seleccionamos X (nbAxis=0), queremos la tangente en el plano YZ.
-    
-    var sign = 1.0; 
-    // Simplificación robusta: Tangente = perpendicular al radio vector en espacio local
-    var localInter = vec3.create();
-    // Transformar intersección al espacio del gizmo local
-    // (Nota: esto es aproximado pero funcional para UI)
-    
-    vec3.set(dir, -lastInter[1], lastInter[0], 0.0); // Default Z plane tangent
-    
-    // Proyección correcta basada en el eje seleccionado
-    if (this._selected._nbAxis === 0) { // X Axis -> Tangent in YZ
-        // Vector desde el centro (0,0,0) al punto de click (0, y, z)
-        // Tangente es (-z, y) en ese plano local
-        // Pero usaremos la proyección de pantalla para simplificar la interacción
-    }
-
+    var origin = [0.0, 0.0, 0.0];
+    this._computeCenterGizmo(origin);
+    vec3.copy(origin, camera.project(origin));
     vec2.set(this._editLineOrigin, main._mouseX, main._mouseY);
   }
 
@@ -565,23 +536,19 @@ class Gizmo {
     var main = this._main;
     var camera = main.getCamera();
     
-    // Lógica mejorada de rotación visual
-    // Usamos el centro del gizmo proyectado
     var origin = vec3.create();
     this._computeCenterGizmo(origin);
     var screenOrigin = vec3.create();
     vec3.copy(screenOrigin, camera.project(origin));
     
-    // Vector actual desde el centro
+    // Polar rotation relative to gizmo center
     var vCurrent = vec2.fromValues(main._mouseX - screenOrigin[0], main._mouseY - screenOrigin[1]);
     var vLast = vec2.fromValues(main._lastMouseX - screenOrigin[0], main._lastMouseY - screenOrigin[1]);
     
-    // Ángulo delta basado en movimiento polar (más intuitivo que tangentes lineales)
     var angleCurrent = Math.atan2(vCurrent[1], vCurrent[0]);
     var angleLast = Math.atan2(vLast[1], vLast[0]);
     var angle = angleCurrent - angleLast;
     
-    // Corregir saltos de -PI a PI
     if (angle > Math.PI) angle -= Math.PI * 2;
     if (angle < -Math.PI) angle += Math.PI * 2;
 
@@ -597,29 +564,20 @@ class Gizmo {
       vec3.normalize(axis, axis);
     }
     
-    // Proyectar eje para saber si invertimos el giro (cuando el eje apunta hacia adentro de la pantalla)
     var axisView = vec3.create();
     vec3.transformMat4(axisView, axis, camera.getViewMatrix());
-    if (axisView[2] > 0.0) angle = -angle; // Invertir si el eje apunta "atrás"
+    if (axisView[2] > 0.0) angle = -angle;
 
-    // Aplicar rotación
     var qrot = quat.create();
-    quat.setAxisAngle(qrot, axis, angle); // Usamos -angle o +angle según preferencia visual
+    quat.setAxisAngle(qrot, axis, angle);
 
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
       var temp = mat4.create();
-      
-      // Aplicar rotación en el espacio correcto
-      // Edit = Rot * Edit
-      // Necesitamos extraer la posición del pivote si quisiéramos rotar alrededor de él visualmente
-      // Pero getEditMatrix() es una delta.
-      
-      // Acumulamos la rotación sobre la matriz existente
       mat4.fromQuat(temp, qrot);
-      mat4.mul(mrot, temp, mrot); 
-
+      // Aplicar acumulativamente (Delta)
+      mat4.mul(mrot, temp, mrot);
       this._scaleRotateEditMatrix(mrot, i);
     }
 
