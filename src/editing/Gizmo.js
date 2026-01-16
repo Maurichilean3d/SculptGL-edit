@@ -1,7 +1,3 @@
-/**
- * Parte del código de SculptGL.
- * Implementa funciones o clases internas usadas por la aplicación durante su ejecución.
- */
 import { vec2, vec3, mat4, quat } from 'gl-matrix';
 import Primitives from 'drawables/Primitives';
 import Enums from 'misc/Enums';
@@ -79,81 +75,36 @@ var SPACE_LOCAL = 1;
 var SPACE_NORMAL = 2;
 
 class Gizmo {
-  static get TRANS_X() {
-    return TRANS_X;
-  }
-  static get TRANS_Y() {
-    return TRANS_Y;
-  }
-  static get TRANS_Z() {
-    return TRANS_Z;
-  }
-  static get ROT_X() {
-    return ROT_X;
-  }
-  static get ROT_Y() {
-    return ROT_Y;
-  }
-  static get ROT_Z() {
-    return ROT_Z;
-  }
-  static get ROT_W() {
-    return ROT_W;
-  }
-  static get PLANE_X() {
-    return PLANE_X;
-  }
-  static get PLANE_Y() {
-    return PLANE_Y;
-  }
-  static get PLANE_Z() {
-    return PLANE_Z;
-  }
-  static get SCALE_X() {
-    return SCALE_X;
-  }
-  static get SCALE_Y() {
-    return SCALE_Y;
-  }
-  static get SCALE_Z() {
-    return SCALE_Z;
-  }
-  static get SCALE_W() {
-    return SCALE_W;
-  }
+  static get TRANS_X() { return TRANS_X; }
+  static get TRANS_Y() { return TRANS_Y; }
+  static get TRANS_Z() { return TRANS_Z; }
+  static get ROT_X() { return ROT_X; }
+  static get ROT_Y() { return ROT_Y; }
+  static get ROT_Z() { return ROT_Z; }
+  static get ROT_W() { return ROT_W; }
+  static get PLANE_X() { return PLANE_X; }
+  static get PLANE_Y() { return PLANE_Y; }
+  static get PLANE_Z() { return PLANE_Z; }
+  static get SCALE_X() { return SCALE_X; }
+  static get SCALE_Y() { return SCALE_Y; }
+  static get SCALE_Z() { return SCALE_Z; }
+  static get SCALE_W() { return SCALE_W; }
 
-  static get TRANS_XYZ() {
-    return TRANS_XYZ;
-  }
-  static get ROT_XYZ() {
-    return ROT_XYZ;
-  }
-  static get PLANE_XYZ() {
-    return PLANE_XYZ;
-  }
-  static get SCALE_XYZW() {
-    return SCALE_XYZW;
-  }
+  static get TRANS_XYZ() { return TRANS_XYZ; }
+  static get ROT_XYZ() { return ROT_XYZ; }
+  static get PLANE_XYZ() { return PLANE_XYZ; }
+  static get SCALE_XYZW() { return SCALE_XYZW; }
 
-  static get SPACE_WORLD() {
-    return SPACE_WORLD;
-  }
-
-  static get SPACE_LOCAL() {
-    return SPACE_LOCAL;
-  }
-
-  static get SPACE_NORMAL() {
-    return SPACE_NORMAL;
-  }
+  static get SPACE_WORLD() { return SPACE_WORLD; }
+  static get SPACE_LOCAL() { return SPACE_LOCAL; }
+  static get SPACE_NORMAL() { return SPACE_NORMAL; }
 
   constructor(main) {
     this._main = main;
     this._gl = main._gl;
 
     // activated gizmos
-    this._activatedType =
-      Gizmo.TRANS_XYZ | Gizmo.ROT_XYZ | Gizmo.PLANE_XYZ | Gizmo.SCALE_XYZW | Gizmo.ROT_W;
+    this._activatedType = Gizmo.TRANS_XYZ | Gizmo.ROT_XYZ | Gizmo.PLANE_XYZ | Gizmo.SCALE_XYZW | Gizmo.ROT_W;
 
     // trans arrow 1 dim
     this._transX = createGizmo(Gizmo.TRANS_X, 0);
@@ -209,6 +160,10 @@ class Gizmo {
     this._staticNormal = vec3.create();
     this._hasStaticNormal = false;
 
+    // PIVOTE PERSONALIZADO (Nuevo sistema)
+    this._customPivotOffset = vec3.create();
+    this._useCustomPivot = false;
+
     this._initTranslate();
     this._initRotate();
     this._initScale();
@@ -225,6 +180,22 @@ class Gizmo {
     this._updateMatrices();
     this._main.render();
   }
+
+  // --- MÉTODOS DE PIVOTE ---
+  setCustomPivot(point) {
+    this._useCustomPivot = true;
+    vec3.copy(this._customPivotOffset, point);
+    this._updateMatrices();
+    this._main.render();
+  }
+
+  clearCustomPivot() {
+    this._useCustomPivot = false;
+    vec3.set(this._customPivotOffset, 0.0, 0.0, 0.0);
+    this._updateMatrices();
+    this._main.render();
+  }
+  // -------------------------
 
   _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
     var spaceMat = this._spaceMatrix;
@@ -269,73 +240,65 @@ class Gizmo {
   }
 
   _updateSpaceMatrices(center) {
-    if (this._spaceMode === SPACE_WORLD) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
-      return;
-    }
+    // 1. Resetear a identidad por defecto (WORLD)
+    mat4.identity(this._spaceMatrix);
+    mat4.identity(this._spaceMatrixInv);
+
+    if (this._spaceMode === SPACE_WORLD) return;
 
     var mesh = this._main.getSelectedMeshes()[0] || this._main.getMesh();
-    if (!mesh) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
-      return;
-    }
+    if (!mesh) return;
 
+    // 2. MODO LOCAL
     if (this._spaceMode === SPACE_LOCAL) {
       var m = mesh.getMatrix();
       this._setSpaceMatrixOrthonormalFromMatrix(m);
       return;
     }
 
-    var normal;
-    if (this._isEditing && this._hasStaticNormal) {
-      normal = this._staticNormal;
-    } else {
-      var picking = this._main.getPicking();
-      picking.computePickedNormal();
-      normal = picking.getPickedNormal();
+    // 3. MODO NORMAL (Con lógica robusta y fallback)
+    if (this._spaceMode === SPACE_NORMAL) {
+      var normal = vec3.create();
+      // Usar normal estática si estamos editando, o picking actual si no
+      if (this._isEditing && this._hasStaticNormal) {
+        vec3.copy(normal, this._staticNormal);
+      } else {
+        var picking = this._main.getPicking();
+        // Intentar calcular normal si hay un mesh bajo el mouse
+        if (picking.getMesh()) {
+          picking.computePickedNormal();
+          vec3.copy(normal, picking.getPickedNormal());
+        }
+      }
+
+      var normalLen = vec3.len(normal);
+      
+      // FALLBACK: Si no hay normal válida (clic al aire), usar LOCAL
+      if (normalLen < 0.0001) {
+        var mLocal = mesh.getMatrix();
+        this._setSpaceMatrixOrthonormalFromMatrix(mLocal);
+        return;
+      }
+
+      // CONSTRUIR BASE: Z = Normal
+      var zAxis = vec3.clone(normal);
+      vec3.normalize(zAxis, zAxis);
+      
+      // Buscar vector perpendicular auxiliar
+      var tempX = vec3.fromValues(1, 0, 0);
+      if (Math.abs(vec3.dot(zAxis, tempX)) > 0.9) {
+        vec3.set(tempX, 0, 1, 0);
+      }
+      
+      var xAxis = vec3.create();
+      vec3.cross(xAxis, tempX, zAxis);
+      vec3.normalize(xAxis, xAxis);
+      
+      var yAxis = vec3.create();
+      vec3.cross(yAxis, zAxis, xAxis);
+      
+      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
     }
-    var normalLen = vec3.len(normal);
-    if (normalLen === 0.0) {
-      // Fallback a modo LOCAL cuando no hay normal válida
-      var m = mesh.getMatrix();
-      this._setSpaceMatrixOrthonormalFromMatrix(m);
-      return;
-    }
-
-    var nWorld = vec3.fromValues(normal[0], normal[1], normal[2]);
-    var normalMatrix = mat4.clone(mesh.getMatrix());
-    normalMatrix[12] = normalMatrix[13] = normalMatrix[14] = 0.0;
-    vec3.transformMat4(nWorld, nWorld, normalMatrix);
-    vec3.normalize(nWorld, nWorld);
-
-    // Usar los ejes del mesh en lugar de la posición de la cámara
-    var m = mesh.getMatrix();
-    var meshXAxis = vec3.fromValues(m[0], m[1], m[2]);
-    var meshYAxis = vec3.fromValues(m[4], m[5], m[6]);
-    vec3.normalize(meshXAxis, meshXAxis);
-    vec3.normalize(meshYAxis, meshYAxis);
-
-    // Determinar qué eje del mesh usar como base para el eje X del gizmo
-    // Usar el eje del mesh que sea más perpendicular a la normal
-    var dotX = Math.abs(vec3.dot(meshXAxis, nWorld));
-    var dotY = Math.abs(vec3.dot(meshYAxis, nWorld));
-    var baseAxis = dotX < dotY ? meshXAxis : meshYAxis;
-
-    // Calcular eje X del gizmo perpendicular a la normal
-    var xAxis = vec3.cross(vec3.create(), baseAxis, nWorld);
-    if (vec3.len(xAxis) === 0.0) {
-      // Si son paralelos, usar el otro eje del mesh
-      baseAxis = dotX < dotY ? meshYAxis : meshXAxis;
-      xAxis = vec3.cross(xAxis, baseAxis, nWorld);
-    }
-    vec3.normalize(xAxis, xAxis);
-
-    // Calcular eje Y perpendicular a la normal y al eje X
-    var yAxis = vec3.cross(vec3.create(), nWorld, xAxis);
-    vec3.normalize(yAxis, yAxis);
-    this._setSpaceMatrixFromAxes(xAxis, yAxis, nWorld);
   }
 
   _initPickables() {
@@ -461,8 +424,13 @@ class Gizmo {
   }
 
   _computeCenterGizmo(center = [0.0, 0.0, 0.0]) {
-    var meshes = this._main.getSelectedMeshes();
+    // SOPORTE PARA PIVOTE PERSONALIZADO
+    if (this._useCustomPivot) {
+      vec3.copy(center, this._customPivotOffset);
+      return center;
+    }
 
+    var meshes = this._main.getSelectedMeshes();
     var acc = [0.0, 0.0, 0.0];
     var icenter = [0.0, 0.0, 0.0];
     for (var i = 0; i < meshes.length; ++i) {
@@ -652,15 +620,17 @@ class Gizmo {
 
   _updateRotateEdit() {
     var main = this._main;
-
     var origin = this._editLineOrigin;
     var dir = this._editLineDirection;
 
-    var vec = [main._mouseX, main._mouseY, 0.0];
-    vec2.sub(vec, vec, origin);
-    var dist = vec2.dot(vec, dir);
+    // Vector desde el inicio del clic hasta el mouse actual
+    var dx = main._mouseX - origin[0];
+    var dy = main._mouseY - origin[1];
 
-    // helper line
+    // Proyección sobre la tangente calculada en startRotate
+    var dist = dx * dir[0] + dy * dir[1];
+
+    // Helper visual (línea)
     this._updateLineHelper(
       origin[0],
       origin[1],
@@ -668,19 +638,28 @@ class Gizmo {
       origin[1] + dir[1] * dist
     );
 
-    var angle = (7 * dist) / Math.min(main.getCanvasWidth(), main.getCanvasHeight());
-    angle %= Math.PI * 2;
-    var nbAxis = this._selected._nbAxis;
+    // Calcular ángulo total basado en la distancia arrastrada
+    // 4.0 es un factor de sensibilidad arbitrario pero efectivo
+    var angle = (dist * 4.0) / Math.min(main.getCanvasWidth(), main.getCanvasHeight()) * Math.PI * 2.0;
 
-    var axis = [0.0, 0.0, 0.0];
+    // Obtener eje de rotación real en 3D
+    var nbAxis = this._selected._nbAxis;
+    var axis = vec3.create();
+
     if (this._spaceMode === SPACE_WORLD) {
-      axis[nbAxis] = 1.0;
+      if (nbAxis === 0) axis[0] = 1.0;
+      else if (nbAxis === 1) axis[1] = 1.0;
+      else axis[2] = 1.0;
     } else {
+      // Extraer eje de la matriz de espacio (columnas)
       axis[0] = this._spaceMatrix[nbAxis * 4];
       axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
       axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
       vec3.normalize(axis, axis);
     }
+
+    // Crear cuaternión de rotación para este frame (eje arbitrario, ángulo total)
+    // Se usa negativo para coincidir con la dirección de arrastre visual típica
     var qrot = quat.create();
     quat.setAxisAngle(qrot, axis, -angle);
 
@@ -688,17 +667,9 @@ class Gizmo {
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
       mat4.identity(mrot);
-      if (this._spaceMode !== SPACE_WORLD) {
-        mat4.copy(mrot, this._spaceMatrix);
-        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-        mat4.mul(mrot, mrot, this._spaceMatrixInv);
-      } else {
-        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-      }
+      
+      // Aplicar rotación mediante matriz derivada de quaternion (evita gimbal lock)
+      mat4.fromQuat(mrot, qrot);
 
       this._scaleRotateEditMatrix(mrot, i);
     }
@@ -807,8 +778,7 @@ class Gizmo {
 
   _updateScaleEdit() {
     var main = this._main;
-    var mesh = main.getMesh();
-
+    
     var origin = this._editLineOrigin;
     var dir = this._editLineDirection;
     var nbAxis = this._selected._nbAxis;
@@ -946,10 +916,15 @@ class Gizmo {
     this._isEditing = true;
     if (this._spaceMode === SPACE_NORMAL) {
       var picking = this._main.getPicking();
-      picking.computePickedNormal();
-      var normal = picking.getPickedNormal();
-      vec3.copy(this._staticNormal, normal);
-      this._hasStaticNormal = vec3.len(this._staticNormal) !== 0.0;
+      // Validar si tenemos picking válido antes de leer la normal
+      if (picking.getMesh()) {
+        picking.computePickedNormal();
+        var normal = picking.getPickedNormal();
+        vec3.copy(this._staticNormal, normal);
+        this._hasStaticNormal = vec3.len(this._staticNormal) > 0.0001;
+      } else {
+        this._hasStaticNormal = false;
+      }
     } else {
       this._hasStaticNormal = false;
     }
