@@ -22,6 +22,7 @@ import Rtt from 'drawables/Rtt';
 import ShaderLib from 'render/ShaderLib';
 import MeshStatic from 'mesh/meshStatic/MeshStatic';
 import WebGLCaps from 'render/WebGLCaps';
+import ViewGizmo2D from 'drawables/ViewGizmo2D';
 
 class Scene {
 
@@ -78,6 +79,9 @@ class Scene {
     this._drawFullScene = false; // render everything on the rtt
     this._autoMatrix = opts.scalecenter; // scale and center the imported meshes
     this._vertexSRGB = true; // srgb vs linear colorspace for vertex color
+
+    // Top-right view orientation gizmo (2D overlay)
+    this._viewGizmo2D = null;
   }
 
   start() {
@@ -98,6 +102,7 @@ class Scene {
 
     this.loadTextures();
     this._gui.initGui();
+    this._viewGizmo2D = new ViewGizmo2D(this);
     this.onCanvasResize();
 
     var modelURL = getOptionsURL().modelurl;
@@ -334,6 +339,9 @@ class Scene {
     gl.enable(gl.DEPTH_TEST);
 
     this._sculptManager.postRender(); // draw sculpting gizmo stuffs
+
+    // 2D overlay: view orientation gizmo (top-right)
+    if (this._viewGizmo2D) this._viewGizmo2D.render();
   }
 
   _drawScene() {
@@ -522,6 +530,8 @@ class Scene {
     this._rttMerge.onResize(newWidth, newHeight);
     this._rttOpaque.onResize(newWidth, newHeight);
     this._rttTransparent.onResize(newWidth, newHeight);
+
+    if (this._viewGizmo2D) this._viewGizmo2D.onResize();
 
     this.render();
   }
