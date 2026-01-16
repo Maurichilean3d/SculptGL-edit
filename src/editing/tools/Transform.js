@@ -113,6 +113,14 @@ class Transform extends SculptBase {
   applyEditMatrix(iVerts) {
     var mesh = this.getMesh();
     var em = mesh.getEditMatrix();
+    var emApply = em;
+    if (this._gizmoSpace !== Space.WORLD) {
+      var spaceMat = this._gizmo._spaceMatrix;
+      var spaceInv = this._gizmo._spaceMatrixInv;
+      emApply = mat4.create();
+      mat4.mul(emApply, spaceMat, em);
+      mat4.mul(emApply, emApply, spaceInv);
+    }
     var mAr = mesh.getMaterials();
     var vAr = mesh.getVertices();
     var vTemp = [0.0, 0.0, 0.0];
@@ -122,13 +130,13 @@ class Transform extends SculptBase {
       var x = vTemp[0] = vAr[j];
       var y = vTemp[1] = vAr[j + 1];
       var z = vTemp[2] = vAr[j + 2];
-      vec3.transformMat4(vTemp, vTemp, em);
+      vec3.transformMat4(vTemp, vTemp, emApply);
       var iMask = 1.0 - mask;
       vAr[j] = x * iMask + vTemp[0] * mask;
       vAr[j + 1] = y * iMask + vTemp[1] * mask;
       vAr[j + 2] = z * iMask + vTemp[2] * mask;
     }
-    vec3.transformMat4(mesh.getCenter(), mesh.getCenter(), em);
+    vec3.transformMat4(mesh.getCenter(), mesh.getCenter(), emApply);
     mat4.identity(em);
     if (iVerts.length === mesh.getNbVertices()) mesh.updateGeometry();
     else mesh.updateGeometry(mesh.getFacesFromVertices(iVerts), iVerts);
