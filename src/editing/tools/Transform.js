@@ -25,6 +25,13 @@ var Space = {
   NORMAL: 2
 };
 
+// Pivot (punto de transformación) al estilo Blender/Unity
+var Pivot = {
+  SELECTION: 0, // centro promedio de la selección (comportamiento actual)
+  OBJECT_ORIGIN: 1, // origen de los objetos seleccionados (promediado)
+  CUSTOM: 2 // punto definido por el usuario
+};
+
 class Transform extends SculptBase {
   static get Mode() {
     return Mode;
@@ -38,6 +45,10 @@ class Transform extends SculptBase {
     return Space;
   }
 
+  static get Pivot() {
+    return Pivot;
+  }
+
   constructor(main) {
     super(main);
 
@@ -45,7 +56,27 @@ class Transform extends SculptBase {
     this._gizmoMode = Mode.TRANSLATE;
     this._gizmoAxis = Axis.ALL;
     this._gizmoSpace = Space.WORLD;
+
+    this._pivotMode = Pivot.SELECTION;
+    this._pivotCustom = vec3.create();
     this._updateGizmo();
+  }
+
+  _computePivotObjectOrigin(out = [0.0, 0.0, 0.0]) {
+    var meshes = this._main.getSelectedMeshes();
+    if (!meshes || meshes.length === 0) return out;
+
+    var acc = vec3.fromValues(0.0, 0.0, 0.0);
+    var tmp = vec3.create();
+    var m = mat4.create();
+    for (var i = 0; i < meshes.length; ++i) {
+      // origen local [0,0,0] llevado a mundo por (Matrix * EditMatrix)
+      mat4.mul(m, meshes[i].getMatrix(), meshes[i].getEditMatrix());
+      vec3.transformMat4(tmp, vec3.set(tmp, 0.0, 0.0, 0.0), m);
+      vec3.add(acc, acc, tmp);
+    }
+    vec3.scale(out, acc, 1.0 / meshes.length);
+    return out;
   }
 
   isIdentity(m) {
@@ -170,6 +201,25 @@ class Transform extends SculptBase {
     }
     this._gizmo.setActivatedType(type);
     this._gizmo.setSpaceMode(this._gizmoSpace);
+
+    // sincroniza pivote
+    this._syncPivotToGizmo(true);
+  }
+
+  _syncPivotToGizmo(render = false) {
+    if (this._pivotMode === Pivot.SELECTION) {
+      this._gizmo.clearPivot(render);
+      return;
+    }
+
+    if (this._pivotMode === Pivot.OBJECT_ORIGIN) {
+      var p = this._computePivotObjectOrigin();
+      this._gizmo.setPivotWorld(p, render);
+      return;
+    }
+
+    // CUSTOM
+    this._gizmo.setPivotWorld(this._pivotCustom, render);
   }
 
   setGizmoMode(mode) {
@@ -190,9 +240,38 @@ class Transform extends SculptBase {
     this._main.render();
   }
 
+  setPivotMode(mode) {
+    this._pivotMode = mode;
+    this._syncPivotToGizmo(true);
+    this._main.render();
+  }
+
+  /**
+   * Define pivote custom a partir del punto actualmente pickeado.
+   * Recomendado: atarlo a un botón de UI "Set Pivot From Click".
+   */
+  setPivotFromPicking() {
+    var picking = this._main.getPicking();
+    var p = picking.getIntersectionPoint();
+    if (!p) return;
+    vec3.copy(this._pivotCustom, p);
+    this._pivotMode = Pivot.CUSTOM;
+    this._syncPivotToGizmo(true);
+    this._main.render();
+  }
+
+  resetPivot() {
+    this._pivotMode = Pivot.SELECTION;
+    this._syncPivotToGizmo(true);
+    this._main.render();
+  }
+
   postRender() {
-    if (this.getMesh())
+    if (this.getMesh()) {
+      // en OBJECT_ORIGIN, el pivote puede cambiar si el usuario mueve/edita
+      if (this._pivotMode === Pivot.OBJECT_ORIGIN) this._syncPivotToGizmo(false);
       this._gizmo.render();
+    }
   }
 
   addSculptToScene(scene) {
