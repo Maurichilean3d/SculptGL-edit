@@ -241,6 +241,33 @@ class Gizmo {
     mat4.invert(this._spaceMatrixInv, spaceMat);
   }
 
+  _setSpaceMatrixOrthonormalFromMatrix(m) {
+    var xAxis = vec3.fromValues(m[0], m[1], m[2]);
+    var yAxis = vec3.fromValues(m[4], m[5], m[6]);
+    var zAxis;
+
+    vec3.normalize(xAxis, xAxis);
+
+    var proj = vec3.create();
+    vec3.scale(proj, xAxis, vec3.dot(yAxis, xAxis));
+    vec3.sub(yAxis, yAxis, proj);
+    if (vec3.len(yAxis) === 0.0) {
+      yAxis = vec3.fromValues(m[4], m[5], m[6]);
+    }
+    vec3.normalize(yAxis, yAxis);
+
+    zAxis = vec3.cross(vec3.create(), xAxis, yAxis);
+    if (vec3.len(zAxis) === 0.0) {
+      zAxis = vec3.fromValues(m[8], m[9], m[10]);
+    }
+    vec3.normalize(zAxis, zAxis);
+
+    vec3.cross(yAxis, zAxis, xAxis);
+    vec3.normalize(yAxis, yAxis);
+
+    this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
+  }
+
   _updateSpaceMatrices(center) {
     if (this._spaceMode === SPACE_WORLD) {
       mat4.identity(this._spaceMatrix);
@@ -257,13 +284,7 @@ class Gizmo {
 
     if (this._spaceMode === SPACE_LOCAL) {
       var m = mesh.getMatrix();
-      var xAxis = vec3.fromValues(m[0], m[1], m[2]);
-      var yAxis = vec3.fromValues(m[4], m[5], m[6]);
-      var zAxis = vec3.fromValues(m[8], m[9], m[10]);
-      vec3.normalize(xAxis, xAxis);
-      vec3.normalize(yAxis, yAxis);
-      vec3.normalize(zAxis, zAxis);
-      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
+      this._setSpaceMatrixOrthonormalFromMatrix(m);
       return;
     }
 
@@ -279,13 +300,7 @@ class Gizmo {
     if (normalLen === 0.0) {
       // Fallback a modo LOCAL cuando no hay normal válida
       var m = mesh.getMatrix();
-      var xAxis = vec3.fromValues(m[0], m[1], m[2]);
-      var yAxis = vec3.fromValues(m[4], m[5], m[6]);
-      var zAxis = vec3.fromValues(m[8], m[9], m[10]);
-      vec3.normalize(xAxis, xAxis);
-      vec3.normalize(yAxis, yAxis);
-      vec3.normalize(zAxis, zAxis);
-      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
+      this._setSpaceMatrixOrthonormalFromMatrix(m);
       return;
     }
 
@@ -476,11 +491,13 @@ class Gizmo {
 
     // manage view arc alignment
     if (this._spaceMode === SPACE_WORLD) {
-      var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
-      vec3.normalize(eyeDir, eyeDir);
-      vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
-      vec3.normalize(eyeDir, eyeDir);
-      this._updateArcRotation(eyeDir);
+      if (!this._isEditing) {
+        var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
+        vec3.normalize(eyeDir, eyeDir);
+        vec3.transformMat4(eyeDir, eyeDir, this._spaceMatrixInv);
+        vec3.normalize(eyeDir, eyeDir);
+        this._updateArcRotation(eyeDir);
+      }
     } else {
       mat4.identity(this._rotW._baseMatrix);
       mat4.identity(this._scaleW._baseMatrix);
@@ -569,7 +586,12 @@ class Gizmo {
     var sign = this._selected._nbAxis === 0 ? -1.0 : 1.0;
     var lastInter = this._selected._lastInter;
     vec3.set(dir, -sign * lastInter[2], -sign * lastInter[1], sign * lastInter[0]);
-    vec3.transformMat4(dir, dir, this._selected._finalMatrix);
+    var rotateMat = mat4.clone(this._selected._finalMatrix);
+    rotateMat[12] = rotateMat[13] = rotateMat[14] = 0.0;
+    if (this._spaceMode !== SPACE_WORLD && this._selected._nbAxis !== -1) {
+      vec3.transformMat4(dir, dir, this._spaceMatrix);
+    }
+    vec3.transformMat4(dir, dir, rotateMat);
     vec3.copy(dir, camera.project(dir));
 
     vec2.normalize(dir, vec2.sub(dir, dir, projCenter));
@@ -650,18 +672,26 @@ class Gizmo {
     angle %= Math.PI * 2;
     var nbAxis = this._selected._nbAxis;
 
+    var axis = [0.0, 0.0, 0.0];
+    if (nbAxis === -1) {
+      var center = this._computeCenterGizmo();
+      var eye = main.getCamera().computePosition();
+      vec3.normalize(axis, vec3.sub(axis, eye, center));
+    } else if (this._spaceMode === SPACE_WORLD) {
+      axis[nbAxis] = 1.0;
+    } else {
+      axis[0] = this._spaceMatrix[nbAxis * 4];
+      axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
+      axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
+      vec3.normalize(axis, axis);
+    }
+    var qrot = quat.create();
+    quat.setAxisAngle(qrot, axis, -angle);
+
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
-      mat4.identity(mrot);
-      if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-      else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-      else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-
-      if (this._spaceMode !== SPACE_WORLD) {
-        mat4.mul(mrot, this._spaceMatrix, mrot);
-        mat4.mul(mrot, mrot, this._spaceMatrixInv);
-      }
+      mat4.fromQuat(mrot, qrot);
 
       this._scaleRotateEditMatrix(mrot, i);
     }
@@ -818,8 +848,8 @@ class Gizmo {
     mat4.mul(edit, this._editTrans, edit);
     mat4.mul(edit, edit, this._editTransInv);
 
-    mat4.mul(edit, this._editLocalInv[i], edit);
-    mat4.mul(edit, edit, this._editLocal[i]);
+    mat4.mul(edit, this._editScaleRotInv[i], edit);
+    mat4.mul(edit, edit, this._editScaleRot[i]);
   }
 
   addGizmoToScene(scene) {
