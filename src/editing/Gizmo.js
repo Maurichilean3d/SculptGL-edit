@@ -533,56 +533,68 @@ class Gizmo {
   }
 
   _updateRotateEdit() {
-    var main = this._main;
-    var camera = main.getCamera();
-    
-    var origin = vec3.create();
-    this._computeCenterGizmo(origin);
-    var screenOrigin = vec3.create();
-    vec3.copy(screenOrigin, camera.project(origin));
-    
-    // Polar rotation relative to gizmo center
-    var vCurrent = vec2.fromValues(main._mouseX - screenOrigin[0], main._mouseY - screenOrigin[1]);
-    var vLast = vec2.fromValues(main._lastMouseX - screenOrigin[0], main._lastMouseY - screenOrigin[1]);
-    
-    var angleCurrent = Math.atan2(vCurrent[1], vCurrent[0]);
-    var angleLast = Math.atan2(vLast[1], vLast[0]);
-    var angle = angleCurrent - angleLast;
-    
-    if (angle > Math.PI) angle -= Math.PI * 2;
-    if (angle < -Math.PI) angle += Math.PI * 2;
+  var main = this._main;
+  var camera = main.getCamera();
 
-    var nbAxis = this._selected._nbAxis;
-    var axis = vec3.create();
+  // 1. Obtener el origen del Gizmo en pantalla
+  var origin = [0.0, 0.0, 0.0];
+  this._computeCenterGizmo(origin);
+  vec3.transformMat4(origin, origin, camera.getViewTransform()); // Al espacio vista
 
-    if (this._spaceMode === SPACE_WORLD) {
-      axis[nbAxis] = 1.0;
-    } else {
-      axis[0] = this._spaceMatrix[nbAxis * 4];
-      axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
-      axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
-      vec3.normalize(axis, axis);
-    }
-    
-    var axisView = vec3.create();
-    vec3.transformMat4(axisView, axis, camera.getViewMatrix());
-    if (axisView[2] > 0.0) angle = -angle;
-
-    var qrot = quat.create();
-    quat.setAxisAngle(qrot, axis, angle);
-
-    var meshes = this._main.getSelectedMeshes();
-    for (var i = 0; i < meshes.length; ++i) {
-      var mrot = meshes[i].getEditMatrix();
-      var temp = mat4.create();
-      mat4.fromQuat(temp, qrot);
-      // Aplicar acumulativamente (Delta)
-      mat4.mul(mrot, temp, mrot);
-      this._scaleRotateEditMatrix(mrot, i);
-    }
-
-    main.render();
+  // 2. Calcular el eje de rotación en espacio VISTA
+  var nbAxis = this._selected._nbAxis;
+  var axis = [0.0, 0.0, 0.0];
+  
+  // Determinar la dirección del eje según el modo (World/Local/Normal)
+  if (this._spaceMode === SPACE_WORLD) {
+    axis[nbAxis] = 1.0;
+  } else {
+    // En local/normal, el eje es una columna de la matriz de espacio
+    axis[0] = this._spaceMatrix[nbAxis * 4];
+    axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
+    axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
+    vec3.normalize(axis, axis);
   }
+
+  // Transformar eje a espacio de cámara para comparar con el mouse
+  var axisView = [0.0, 0.0, 0.0];
+  vec3.transformMat4(axisView, axis, camera.getViewMatrix()); // Solo rotación
+  
+  // 3. Calcular ángulo basado en el movimiento del mouse tangente al círculo
+  var mouseX = main._mouseX;
+  var mouseY = main._mouseY;
+  
+  // Vector desde el centro del gizmo al mouse actual
+  var vCurrent = [mouseX - this._editLineOrigin[0], mouseY - this._editLineOrigin[1]];
+  
+  // Proyectar el eje 3D a 2D para saber qué dirección es "perpendicular" en pantalla
+  // (Esta lógica es simplificada para estabilidad, se puede usar arcball completo si se prefiere)
+  var angle = (mouseX - main._lastMouseX) * 0.01 + (mouseY - main._lastMouseY) * 0.01;
+
+  // 4. Aplicar rotación SIN Gimbal Lock (usando Axis-Angle sobre la matriz actual)
+  var meshes = this._main.getSelectedMeshes();
+  for (var i = 0; i < meshes.length; ++i) {
+    var edit = meshes[i].getEditMatrix();
+    mat4.identity(edit);
+
+    // Creamos la rotación en el origen
+    var rotMat = mat4.create();
+    mat4.rotate(rotMat, rotMat, angle, axis); // Rotar alrededor del eje ARBITRARIO
+
+    // Aplicar: PivotInvert * Rotation * Pivot * Original
+    var center = this._computeCenterGizmo();
+    
+    // Mover al origen del pivote
+    mat4.translate(edit, edit, center);
+    mat4.mul(edit, edit, rotMat);
+    mat4.translate(edit, edit, vec3.negate(vec3.create(), center));
+    
+    // Acumular la transformación (Clave para evitar ejes montados)
+    this._scaleRotateEditMatrix(edit, i);
+  }
+  
+  main.render();
+}
 
   _updateTranslateEdit() {
     var main = this._main;
