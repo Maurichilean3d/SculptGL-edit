@@ -855,8 +855,8 @@ class Gizmo {
     mat4.mul(edit, this._editTrans, edit);
     mat4.mul(edit, edit, this._editTransInv);
 
-    mat4.mul(edit, this._editLocalInv[i], edit);
-    mat4.mul(edit, edit, this._editLocal[i]);
+    mat4.mul(edit, this._editScaleRotInv[i], edit);
+    mat4.mul(edit, edit, this._editScaleRot[i]);
   }
 
   addGizmoToScene(scene) {
