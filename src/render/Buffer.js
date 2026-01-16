@@ -1,40 +1,52 @@
 /**
- * Módulo de renderizado WebGL de SculptGL.
- * Dibuja la escena 3D y administra shaders, buffers y el pipeline de dibujo.
+ * Módulo de renderizado adaptado para Three.js.
+ * Actúa como un wrapper para THREE.BufferAttribute.
  */
+import * as THREE from 'three';
+
 class Buffer {
 
   constructor(gl, type, hint) {
-    this._gl = gl; // webgl context
-    this._buffer = gl.createBuffer(); // the buffer
-    this._type = type; // the type (vert data vs index)
-    this._hint = hint; //the buffer update hint
-    this._size = 0; // the size of the buffer
+    // El contexto 'gl' y 'type' (ARRAY_BUFFER) ya no son estrictamente necesarios
+    // pero se mantienen los argumentos para compatibilidad de firma.
+    this._bufferAttribute = null;
+    this._version = 0;
   }
 
   bind() {
-    if (!this._buffer) this._buffer = this._gl.createBuffer();
-    this._gl.bindBuffer(this._type, this._buffer);
+    // No es necesario bindear manualmente en Three.js
   }
 
   release() {
-    this._gl.deleteBuffer(this._buffer);
-    this._buffer = null;
-    this._size = 0;
+    if (this._bufferAttribute) {
+      this._bufferAttribute = null;
+    }
   }
 
-  update(data, nbElts) {
-    this.bind();
+  /**
+   * Actualiza los datos del buffer.
+   * @param {Float32Array|Uint16Array|Uint32Array} data - Los datos.
+   * @param {Number} itemSize - Número de componentes por vértice (ej: 3 para XYZ).
+   */
+  update(data, itemSize) {
+    if (!data) return;
 
-    if (nbElts !== undefined && nbElts !== data.length)
-      data = data.subarray(0, nbElts);
-
-    if (data.length > this._size) {
-      this._gl.bufferData(this._type, data, this._hint);
-      this._size = data.length;
+    // Si el atributo no existe o el tamaño cambia drásticamente, creamos uno nuevo
+    if (!this._bufferAttribute || this._bufferAttribute.count !== (data.length / itemSize)) {
+      this._bufferAttribute = new THREE.BufferAttribute(data, itemSize);
+      // Ajustar uso dinámico si es necesario
+      this._bufferAttribute.setUsage(THREE.DynamicDrawUsage);
     } else {
-      this._gl.bufferSubData(this._type, 0, data);
+      // Actualizamos los datos existentes
+      this._bufferAttribute.set(data);
+      this._bufferAttribute.needsUpdate = true;
     }
+    
+    this._version++;
+  }
+
+  getBufferAttribute() {
+    return this._bufferAttribute;
   }
 }
 
