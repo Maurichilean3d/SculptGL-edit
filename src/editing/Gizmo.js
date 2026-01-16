@@ -672,6 +672,18 @@ class Gizmo {
     angle %= Math.PI * 2;
     var nbAxis = this._selected._nbAxis;
 
+    var axis = [0.0, 0.0, 0.0];
+    if (this._spaceMode === SPACE_WORLD) {
+      axis[nbAxis] = 1.0;
+    } else {
+      axis[0] = this._spaceMatrix[nbAxis * 4];
+      axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
+      axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
+      vec3.normalize(axis, axis);
+    }
+    var qrot = quat.create();
+    quat.setAxisAngle(qrot, axis, -angle);
+
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
