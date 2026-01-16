@@ -179,6 +179,21 @@ class Gizmo {
     this._main.render();
   }
 
+  // Alias methods for compatibility with Transform.js
+  setPivotWorld(point, render = true) {
+    this.setCustomPivot(point);
+    if (!render) {
+      // Don't render - updateMatrices is already called in setCustomPivot
+    }
+  }
+
+  clearPivot(render = true) {
+    this.clearCustomPivot();
+    if (!render) {
+      // Don't render - already called in clearCustomPivot
+    }
+  }
+
   _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
     var spaceMat = this._spaceMatrix;
     mat4.identity(spaceMat);
@@ -206,69 +221,76 @@ class Gizmo {
     this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
   }
 
-  _updateRotateEdit() {
-  var main = this._main;
-  var camera = main.getCamera();
+  _updateSpaceMatrices(center) {
+    if (this._spaceMode === SPACE_WORLD) {
+      mat4.identity(this._spaceMatrix);
+      mat4.identity(this._spaceMatrixInv);
+      return;
+    }
 
-  // 1. Obtener el origen del Gizmo en pantalla
-  var origin = [0.0, 0.0, 0.0];
-  this._computeCenterGizmo(origin);
-  vec3.transformMat4(origin, origin, camera.getViewTransform()); // Al espacio vista
+    var mesh = this._main.getSelectedMeshes()[0] || this._main.getMesh();
+    if (!mesh) {
+      mat4.identity(this._spaceMatrix);
+      mat4.identity(this._spaceMatrixInv);
+      return;
+    }
 
-  // 2. Calcular el eje de rotación en espacio VISTA
-  var nbAxis = this._selected._nbAxis;
-  var axis = [0.0, 0.0, 0.0];
-  
-  // Determinar la dirección del eje según el modo (World/Local/Normal)
-  if (this._spaceMode === SPACE_WORLD) {
-    axis[nbAxis] = 1.0;
-  } else {
-    // En local/normal, el eje es una columna de la matriz de espacio
-    axis[0] = this._spaceMatrix[nbAxis * 4];
-    axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
-    axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
-    vec3.normalize(axis, axis);
+    if (this._spaceMode === SPACE_LOCAL) {
+      var m = mesh.getMatrix();
+      this._setSpaceMatrixOrthonormalFromMatrix(m);
+      return;
+    }
+
+    var normal;
+    if (this._isEditing && this._hasStaticNormal) {
+      normal = this._staticNormal;
+    } else {
+      var picking = this._main.getPicking();
+      picking.computePickedNormal();
+      normal = picking.getPickedNormal();
+    }
+    var normalLen = vec3.len(normal);
+    if (normalLen === 0.0) {
+      // Fallback a modo LOCAL cuando no hay normal válida
+      var m = mesh.getMatrix();
+      this._setSpaceMatrixOrthonormalFromMatrix(m);
+      return;
+    }
+
+    var nWorld = vec3.fromValues(normal[0], normal[1], normal[2]);
+    var normalMatrix = mat4.clone(mesh.getMatrix());
+    normalMatrix[12] = normalMatrix[13] = normalMatrix[14] = 0.0;
+    vec3.transformMat4(nWorld, nWorld, normalMatrix);
+    vec3.normalize(nWorld, nWorld);
+
+    // Usar los ejes del mesh en lugar de la posición de la cámara
+    var m = mesh.getMatrix();
+    var meshXAxis = vec3.fromValues(m[0], m[1], m[2]);
+    var meshYAxis = vec3.fromValues(m[4], m[5], m[6]);
+    vec3.normalize(meshXAxis, meshXAxis);
+    vec3.normalize(meshYAxis, meshYAxis);
+
+    // Determinar qué eje del mesh usar como base para el eje X del gizmo
+    // Usar el eje del mesh que sea más perpendicular a la normal
+    var dotX = Math.abs(vec3.dot(meshXAxis, nWorld));
+    var dotY = Math.abs(vec3.dot(meshYAxis, nWorld));
+    var baseAxis = dotX < dotY ? meshXAxis : meshYAxis;
+
+    // Calcular eje X del gizmo perpendicular a la normal
+    var xAxis = vec3.cross(vec3.create(), baseAxis, nWorld);
+    if (vec3.len(xAxis) === 0.0) {
+      // Si son paralelos, usar el otro eje del mesh
+      baseAxis = dotX < dotY ? meshYAxis : meshXAxis;
+      xAxis = vec3.cross(xAxis, baseAxis, nWorld);
+    }
+    vec3.normalize(xAxis, xAxis);
+
+    // Calcular eje Y perpendicular a la normal y al eje X
+    var yAxis = vec3.cross(vec3.create(), nWorld, xAxis);
+    vec3.normalize(yAxis, yAxis);
+    this._setSpaceMatrixFromAxes(xAxis, yAxis, nWorld);
   }
 
-  // Transformar eje a espacio de cámara para comparar con el mouse
-  var axisView = [0.0, 0.0, 0.0];
-  vec3.transformMat4(axisView, axis, camera.getViewMatrix()); // Solo rotación
-  
-  // 3. Calcular ángulo basado en el movimiento del mouse tangente al círculo
-  var mouseX = main._mouseX;
-  var mouseY = main._mouseY;
-  
-  // Vector desde el centro del gizmo al mouse actual
-  var vCurrent = [mouseX - this._editLineOrigin[0], mouseY - this._editLineOrigin[1]];
-  
-  // Proyectar el eje 3D a 2D para saber qué dirección es "perpendicular" en pantalla
-  // (Esta lógica es simplificada para estabilidad, se puede usar arcball completo si se prefiere)
-  var angle = (mouseX - main._lastMouseX) * 0.01 + (mouseY - main._lastMouseY) * 0.01;
-
-  // 4. Aplicar rotación SIN Gimbal Lock (usando Axis-Angle sobre la matriz actual)
-  var meshes = this._main.getSelectedMeshes();
-  for (var i = 0; i < meshes.length; ++i) {
-    var edit = meshes[i].getEditMatrix();
-    mat4.identity(edit);
-
-    // Creamos la rotación en el origen
-    var rotMat = mat4.create();
-    mat4.rotate(rotMat, rotMat, angle, axis); // Rotar alrededor del eje ARBITRARIO
-
-    // Aplicar: PivotInvert * Rotation * Pivot * Original
-    var center = this._computeCenterGizmo();
-    
-    // Mover al origen del pivote
-    mat4.translate(edit, edit, center);
-    mat4.mul(edit, edit, rotMat);
-    mat4.translate(edit, edit, vec3.negate(vec3.create(), center));
-    
-    // Acumular la transformación (Clave para evitar ejes montados)
-    this._scaleRotateEditMatrix(edit, i);
-  }
-  
-  main.render();
-}
   _initPickables() {
     var pickables = this._pickables;
     pickables.length = 0;
@@ -559,7 +581,7 @@ class Gizmo {
   // 1. Obtener el origen del Gizmo en pantalla
   var origin = [0.0, 0.0, 0.0];
   this._computeCenterGizmo(origin);
-  vec3.transformMat4(origin, origin, camera.getViewTransform()); // Al espacio vista
+  vec3.transformMat4(origin, origin, camera.getView()); // Al espacio vista
 
   // 2. Calcular el eje de rotación en espacio VISTA
   var nbAxis = this._selected._nbAxis;
@@ -578,7 +600,7 @@ class Gizmo {
 
   // Transformar eje a espacio de cámara para comparar con el mouse
   var axisView = [0.0, 0.0, 0.0];
-  vec3.transformMat4(axisView, axis, camera.getViewMatrix()); // Solo rotación
+  vec3.transformMat4(axisView, axis, camera.getView()); // Solo rotación
   
   // 3. Calcular ángulo basado en el movimiento del mouse tangente al círculo
   var mouseX = main._mouseX;
