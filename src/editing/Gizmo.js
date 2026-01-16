@@ -206,49 +206,69 @@ class Gizmo {
     this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
   }
 
-  _updateSpaceMatrices(center) {
-    mat4.identity(this._spaceMatrix);
-    mat4.identity(this._spaceMatrixInv);
-    if (this._spaceMode === SPACE_WORLD) return;
+  _updateRotateEdit() {
+  var main = this._main;
+  var camera = main.getCamera();
 
-    var mesh = this._main.getSelectedMeshes()[0] || this._main.getMesh();
-    if (!mesh) return;
+  // 1. Obtener el origen del Gizmo en pantalla
+  var origin = [0.0, 0.0, 0.0];
+  this._computeCenterGizmo(origin);
+  vec3.transformMat4(origin, origin, camera.getViewTransform()); // Al espacio vista
 
-    if (this._spaceMode === SPACE_LOCAL) {
-      this._setSpaceMatrixOrthonormalFromMatrix(mesh.getMatrix());
-      return;
-    }
-
-    if (this._spaceMode === SPACE_NORMAL) {
-      var normal = vec3.create();
-      if (this._isEditing && this._hasStaticNormal) {
-        vec3.copy(normal, this._staticNormal);
-      } else {
-        var picking = this._main.getPicking();
-        if (picking.getMesh()) {
-          picking.computePickedNormal();
-          vec3.copy(normal, picking.getPickedNormal());
-        }
-      }
-
-      if (vec3.len(normal) < 0.0001) {
-        this._setSpaceMatrixOrthonormalFromMatrix(mesh.getMatrix());
-        return;
-      }
-
-      var zAxis = vec3.clone(normal);
-      vec3.normalize(zAxis, zAxis);
-      var tempX = vec3.fromValues(1, 0, 0);
-      if (Math.abs(vec3.dot(zAxis, tempX)) > 0.9) vec3.set(tempX, 0, 1, 0);
-      var xAxis = vec3.create();
-      vec3.cross(xAxis, tempX, zAxis);
-      vec3.normalize(xAxis, xAxis);
-      var yAxis = vec3.create();
-      vec3.cross(yAxis, zAxis, xAxis);
-      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
-    }
+  // 2. Calcular el eje de rotación en espacio VISTA
+  var nbAxis = this._selected._nbAxis;
+  var axis = [0.0, 0.0, 0.0];
+  
+  // Determinar la dirección del eje según el modo (World/Local/Normal)
+  if (this._spaceMode === SPACE_WORLD) {
+    axis[nbAxis] = 1.0;
+  } else {
+    // En local/normal, el eje es una columna de la matriz de espacio
+    axis[0] = this._spaceMatrix[nbAxis * 4];
+    axis[1] = this._spaceMatrix[nbAxis * 4 + 1];
+    axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
+    vec3.normalize(axis, axis);
   }
 
+  // Transformar eje a espacio de cámara para comparar con el mouse
+  var axisView = [0.0, 0.0, 0.0];
+  vec3.transformMat4(axisView, axis, camera.getViewMatrix()); // Solo rotación
+  
+  // 3. Calcular ángulo basado en el movimiento del mouse tangente al círculo
+  var mouseX = main._mouseX;
+  var mouseY = main._mouseY;
+  
+  // Vector desde el centro del gizmo al mouse actual
+  var vCurrent = [mouseX - this._editLineOrigin[0], mouseY - this._editLineOrigin[1]];
+  
+  // Proyectar el eje 3D a 2D para saber qué dirección es "perpendicular" en pantalla
+  // (Esta lógica es simplificada para estabilidad, se puede usar arcball completo si se prefiere)
+  var angle = (mouseX - main._lastMouseX) * 0.01 + (mouseY - main._lastMouseY) * 0.01;
+
+  // 4. Aplicar rotación SIN Gimbal Lock (usando Axis-Angle sobre la matriz actual)
+  var meshes = this._main.getSelectedMeshes();
+  for (var i = 0; i < meshes.length; ++i) {
+    var edit = meshes[i].getEditMatrix();
+    mat4.identity(edit);
+
+    // Creamos la rotación en el origen
+    var rotMat = mat4.create();
+    mat4.rotate(rotMat, rotMat, angle, axis); // Rotar alrededor del eje ARBITRARIO
+
+    // Aplicar: PivotInvert * Rotation * Pivot * Original
+    var center = this._computeCenterGizmo();
+    
+    // Mover al origen del pivote
+    mat4.translate(edit, edit, center);
+    mat4.mul(edit, edit, rotMat);
+    mat4.translate(edit, edit, vec3.negate(vec3.create(), center));
+    
+    // Acumular la transformación (Clave para evitar ejes montados)
+    this._scaleRotateEditMatrix(edit, i);
+  }
+  
+  main.render();
+}
   _initPickables() {
     var pickables = this._pickables;
     pickables.length = 0;
