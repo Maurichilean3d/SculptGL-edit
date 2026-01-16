@@ -171,9 +171,24 @@ class Gui {
   addAboutButton() {
     var ctrlAbout = this._topbar.addMenu();
     ctrlAbout.domContainer.innerHTML = TR('about');
-    ctrlAbout.domContainer.addEventListener('mousedown', function () {
+    
+    // Se habilita el submenú en lugar del enlace directo al hacer clic en el título
+    
+    // 1. Enlace al Tutorial (conservando el vínculo original)
+    ctrlAbout.addButton('Tutorial', function () {
       window.open('http://stephaneginier.com', '_blank');
     });
+
+    // Separador visual o título de sección
+    ctrlAbout.addTitle('Información');
+
+    // 2. Etiqueta de Versión Experimental
+    ctrlAbout.addTitle('Ver. Experimental');
+
+    // 3. Fecha y Hora actual
+    var date = new Date();
+    var dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    ctrlAbout.addTitle(dateStr);
   }
 
   updateMesh() {
