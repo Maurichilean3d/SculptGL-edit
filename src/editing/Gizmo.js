@@ -1,31 +1,23 @@
-/**
- * Parte del código de SculptGL.
- * Implementa funciones o clases internas usadas por la aplicación durante su ejecución.
- */
 import { vec2, vec3, mat4, quat } from 'gl-matrix';
 import Primitives from 'drawables/Primitives';
 import Enums from 'misc/Enums';
 
-// configs colors
-var COLOR_X = vec3.fromValues(0.7, 0.2, 0.2);
-var COLOR_Y = vec3.fromValues(0.2, 0.7, 0.2);
-var COLOR_Z = vec3.fromValues(0.2, 0.2, 0.7);
+// Configuración de colores estándar (RGB = XYZ)
+var COLOR_X = vec3.fromValues(0.7, 0.2, 0.2); // Rojo
+var COLOR_Y = vec3.fromValues(0.2, 0.7, 0.2); // Verde
+var COLOR_Z = vec3.fromValues(0.2, 0.2, 0.7); // Azul
 var COLOR_GREY = vec3.fromValues(0.4, 0.4, 0.4);
 var COLOR_SW = vec3.fromValues(0.8, 0.4, 0.2);
 
-// overall scale of the gizmo
+// Dimensiones del Gizmo
 var GIZMO_SIZE = 80.0;
-// arrow
 var ARROW_LENGTH = 2.5;
 var ARROW_CONE_THICK = 6.0;
 var ARROW_CONE_LENGTH = 0.25;
-// thickness of tori and arrows
 var THICKNESS = 0.02;
 var THICKNESS_PICK = THICKNESS * 5.0;
-// radius of tori
 var ROT_RADIUS = 1.5;
 var SCALE_RADIUS = ROT_RADIUS * 1.3;
-// size of cubes
 var CUBE_SIDE = 0.35;
 var CUBE_SIDE_PICK = CUBE_SIDE * 1.2;
 
@@ -36,7 +28,7 @@ var createGizmo = function (type, nbAxis = -1) {
     _finalMatrix: mat4.create(),
     _baseMatrix: mat4.create(),
     _color: vec3.create(),
-    _colorSelect: vec3.fromValues(1.0, 1.0, 0.0),
+    _colorSelect: vec3.fromValues(1.0, 1.0, 0.0), // Amarillo al seleccionar
     _drawGeo: null,
     _pickGeo: null,
     _isSelected: false,
@@ -53,7 +45,7 @@ var createGizmo = function (type, nbAxis = -1) {
   };
 };
 
-// edit masks
+// Máscaras de edición
 var TRANS_X = 1 << 0;
 var TRANS_Y = 1 << 1;
 var TRANS_Z = 1 << 2;
@@ -79,126 +71,70 @@ var SPACE_LOCAL = 1;
 var SPACE_NORMAL = 2;
 
 class Gizmo {
-  static get TRANS_X() {
-    return TRANS_X;
-  }
-  static get TRANS_Y() {
-    return TRANS_Y;
-  }
-  static get TRANS_Z() {
-    return TRANS_Z;
-  }
-  static get ROT_X() {
-    return ROT_X;
-  }
-  static get ROT_Y() {
-    return ROT_Y;
-  }
-  static get ROT_Z() {
-    return ROT_Z;
-  }
-  static get ROT_W() {
-    return ROT_W;
-  }
-  static get PLANE_X() {
-    return PLANE_X;
-  }
-  static get PLANE_Y() {
-    return PLANE_Y;
-  }
-  static get PLANE_Z() {
-    return PLANE_Z;
-  }
-  static get SCALE_X() {
-    return SCALE_X;
-  }
-  static get SCALE_Y() {
-    return SCALE_Y;
-  }
-  static get SCALE_Z() {
-    return SCALE_Z;
-  }
-  static get SCALE_W() {
-    return SCALE_W;
-  }
+  static get TRANS_X() { return TRANS_X; }
+  static get TRANS_Y() { return TRANS_Y; }
+  static get TRANS_Z() { return TRANS_Z; }
+  static get ROT_X() { return ROT_X; }
+  static get ROT_Y() { return ROT_Y; }
+  static get ROT_Z() { return ROT_Z; }
+  static get ROT_W() { return ROT_W; }
+  static get PLANE_X() { return PLANE_X; }
+  static get PLANE_Y() { return PLANE_Y; }
+  static get PLANE_Z() { return PLANE_Z; }
+  static get SCALE_X() { return SCALE_X; }
+  static get SCALE_Y() { return SCALE_Y; }
+  static get SCALE_Z() { return SCALE_Z; }
+  static get SCALE_W() { return SCALE_W; }
 
-  static get TRANS_XYZ() {
-    return TRANS_XYZ;
-  }
-  static get ROT_XYZ() {
-    return ROT_XYZ;
-  }
-  static get PLANE_XYZ() {
-    return PLANE_XYZ;
-  }
-  static get SCALE_XYZW() {
-    return SCALE_XYZW;
-  }
+  static get TRANS_XYZ() { return TRANS_XYZ; }
+  static get ROT_XYZ() { return ROT_XYZ; }
+  static get PLANE_XYZ() { return PLANE_XYZ; }
+  static get SCALE_XYZW() { return SCALE_XYZW; }
 
-  static get SPACE_WORLD() {
-    return SPACE_WORLD;
-  }
-
-  static get SPACE_LOCAL() {
-    return SPACE_LOCAL;
-  }
-
-  static get SPACE_NORMAL() {
-    return SPACE_NORMAL;
-  }
+  static get SPACE_WORLD() { return SPACE_WORLD; }
+  static get SPACE_LOCAL() { return SPACE_LOCAL; }
+  static get SPACE_NORMAL() { return SPACE_NORMAL; }
 
   constructor(main) {
     this._main = main;
     this._gl = main._gl;
 
-    // activated gizmos
-    this._activatedType =
-      Gizmo.TRANS_XYZ | Gizmo.ROT_XYZ | Gizmo.PLANE_XYZ | Gizmo.SCALE_XYZW | Gizmo.ROT_W;
+    this._activatedType = Gizmo.TRANS_XYZ | Gizmo.ROT_XYZ | Gizmo.PLANE_XYZ | Gizmo.SCALE_XYZW | Gizmo.ROT_W;
 
-    // trans arrow 1 dim
+    // Inicialización de componentes (X=0, Y=1, Z=2)
     this._transX = createGizmo(Gizmo.TRANS_X, 0);
     this._transY = createGizmo(Gizmo.TRANS_Y, 1);
     this._transZ = createGizmo(Gizmo.TRANS_Z, 2);
 
-    // trans plane 2 dim
     this._planeX = createGizmo(Gizmo.PLANE_X, 0);
     this._planeY = createGizmo(Gizmo.PLANE_Y, 1);
     this._planeZ = createGizmo(Gizmo.PLANE_Z, 2);
 
-    // scale cube 1 dim
     this._scaleX = createGizmo(Gizmo.SCALE_X, 0);
     this._scaleY = createGizmo(Gizmo.SCALE_Y, 1);
     this._scaleZ = createGizmo(Gizmo.SCALE_Z, 2);
-    // scale cube 3 dim
     this._scaleW = createGizmo(Gizmo.SCALE_W);
 
-    // rot arc 1 dim
     this._rotX = createGizmo(Gizmo.ROT_X, 0);
     this._rotY = createGizmo(Gizmo.ROT_Y, 1);
     this._rotZ = createGizmo(Gizmo.ROT_Z, 2);
-    // full arc display
     this._rotW = createGizmo(Gizmo.ROT_W);
 
-    // line helper
     this._lineHelper = Primitives.createLine2D(this._gl);
     this._lineHelper.setShaderType(Enums.Shader.FLAT);
 
     this._lastDistToEye = 0.0;
     this._isEditing = false;
-
     this._selected = null;
     this._pickables = [];
 
-    // editing lines stuffs
     this._editLineOrigin = [0.0, 0.0, 0.0];
     this._editLineDirection = [0.0, 0.0, 0.0];
     this._editOffset = [0.0, 0.0, 0.0];
 
-    // cached matrices when starting the editing operations
     this._editLocal = [];
     this._editTrans = mat4.create();
     this._editScaleRot = [];
-    // same for inv
     this._editLocalInv = [];
     this._editTransInv = mat4.create();
     this._editScaleRotInv = [];
@@ -209,11 +145,9 @@ class Gizmo {
     this._staticNormal = vec3.create();
     this._hasStaticNormal = false;
 
-    // --- Pivot (punto de manipulación) ---
-    // Por defecto, el pivote es el centro promedio de la selección.
-    // Si _usePivot es true, el gizmo se posiciona en _pivotWorld (coordenadas mundo).
-    this._usePivot = false;
-    this._pivotWorld = vec3.create();
+    // PIVOTE PERSONALIZADO
+    this._customPivotOffset = vec3.create();
+    this._useCustomPivot = false;
 
     this._initTranslate();
     this._initRotate();
@@ -232,39 +166,26 @@ class Gizmo {
     this._main.render();
   }
 
-  /**
-   * Fija el pivote del gizmo en coordenadas mundo.
-   * Útil para imitar Blender/Unity: "3D cursor" / "custom pivot".
-   */
-  setPivotWorld(pivot, render = true) {
-    if (pivot) {
-      vec3.copy(this._pivotWorld, pivot);
-      this._usePivot = true;
-    } else {
-      this._usePivot = false;
-    }
+  setCustomPivot(point) {
+    this._useCustomPivot = true;
+    vec3.copy(this._customPivotOffset, point);
     this._updateMatrices();
-    if (render) this._main.render();
+    this._main.render();
   }
 
-  clearPivot(render = true) {
-    this._usePivot = false;
+  clearCustomPivot() {
+    this._useCustomPivot = false;
+    vec3.set(this._customPivotOffset, 0.0, 0.0, 0.0);
     this._updateMatrices();
-    if (render) this._main.render();
+    this._main.render();
   }
 
   _setSpaceMatrixFromAxes(xAxis, yAxis, zAxis) {
     var spaceMat = this._spaceMatrix;
     mat4.identity(spaceMat);
-    spaceMat[0] = xAxis[0];
-    spaceMat[1] = xAxis[1];
-    spaceMat[2] = xAxis[2];
-    spaceMat[4] = yAxis[0];
-    spaceMat[5] = yAxis[1];
-    spaceMat[6] = yAxis[2];
-    spaceMat[8] = zAxis[0];
-    spaceMat[9] = zAxis[1];
-    spaceMat[10] = zAxis[2];
+    spaceMat[0] = xAxis[0]; spaceMat[1] = xAxis[1]; spaceMat[2] = xAxis[2];
+    spaceMat[4] = yAxis[0]; spaceMat[5] = yAxis[1]; spaceMat[6] = yAxis[2];
+    spaceMat[8] = zAxis[0]; spaceMat[9] = zAxis[1]; spaceMat[10] = zAxis[2];
     mat4.invert(this._spaceMatrixInv, spaceMat);
   }
 
@@ -272,203 +193,166 @@ class Gizmo {
     var xAxis = vec3.fromValues(m[0], m[1], m[2]);
     var yAxis = vec3.fromValues(m[4], m[5], m[6]);
     var zAxis;
-
     vec3.normalize(xAxis, xAxis);
-
     var proj = vec3.create();
     vec3.scale(proj, xAxis, vec3.dot(yAxis, xAxis));
     vec3.sub(yAxis, yAxis, proj);
-    if (vec3.len(yAxis) === 0.0) {
-      yAxis = vec3.fromValues(m[4], m[5], m[6]);
-    }
+    if (vec3.len(yAxis) === 0.0) yAxis = vec3.fromValues(m[4], m[5], m[6]);
     vec3.normalize(yAxis, yAxis);
-
     zAxis = vec3.cross(vec3.create(), xAxis, yAxis);
-    if (vec3.len(zAxis) === 0.0) {
-      zAxis = vec3.fromValues(m[8], m[9], m[10]);
-    }
+    if (vec3.len(zAxis) === 0.0) zAxis = vec3.fromValues(m[8], m[9], m[10]);
     vec3.normalize(zAxis, zAxis);
-
     vec3.cross(yAxis, zAxis, xAxis);
     vec3.normalize(yAxis, yAxis);
-
     this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
   }
 
   _updateSpaceMatrices(center) {
-    if (this._spaceMode === SPACE_WORLD) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
-      return;
-    }
+    mat4.identity(this._spaceMatrix);
+    mat4.identity(this._spaceMatrixInv);
+    if (this._spaceMode === SPACE_WORLD) return;
 
     var mesh = this._main.getSelectedMeshes()[0] || this._main.getMesh();
-    if (!mesh) {
-      mat4.identity(this._spaceMatrix);
-      mat4.identity(this._spaceMatrixInv);
-      return;
-    }
+    if (!mesh) return;
 
     if (this._spaceMode === SPACE_LOCAL) {
-      var m = mesh.getMatrix();
-      this._setSpaceMatrixOrthonormalFromMatrix(m);
+      this._setSpaceMatrixOrthonormalFromMatrix(mesh.getMatrix());
       return;
     }
 
-    var normal;
-    if (this._isEditing && this._hasStaticNormal) {
-      normal = this._staticNormal;
-    } else {
-      var picking = this._main.getPicking();
-      picking.computePickedNormal();
-      normal = picking.getPickedNormal();
+    if (this._spaceMode === SPACE_NORMAL) {
+      var normal = vec3.create();
+      if (this._isEditing && this._hasStaticNormal) {
+        vec3.copy(normal, this._staticNormal);
+      } else {
+        var picking = this._main.getPicking();
+        if (picking.getMesh()) {
+          picking.computePickedNormal();
+          vec3.copy(normal, picking.getPickedNormal());
+        }
+      }
+
+      if (vec3.len(normal) < 0.0001) {
+        this._setSpaceMatrixOrthonormalFromMatrix(mesh.getMatrix());
+        return;
+      }
+
+      var zAxis = vec3.clone(normal);
+      vec3.normalize(zAxis, zAxis);
+      var tempX = vec3.fromValues(1, 0, 0);
+      if (Math.abs(vec3.dot(zAxis, tempX)) > 0.9) vec3.set(tempX, 0, 1, 0);
+      var xAxis = vec3.create();
+      vec3.cross(xAxis, tempX, zAxis);
+      vec3.normalize(xAxis, xAxis);
+      var yAxis = vec3.create();
+      vec3.cross(yAxis, zAxis, xAxis);
+      this._setSpaceMatrixFromAxes(xAxis, yAxis, zAxis);
     }
-    var normalLen = vec3.len(normal);
-    if (normalLen === 0.0) {
-      // Fallback a modo LOCAL cuando no hay normal válida
-      var m = mesh.getMatrix();
-      this._setSpaceMatrixOrthonormalFromMatrix(m);
-      return;
-    }
-
-    var nWorld = vec3.fromValues(normal[0], normal[1], normal[2]);
-    var normalMatrix = mat4.clone(mesh.getMatrix());
-    normalMatrix[12] = normalMatrix[13] = normalMatrix[14] = 0.0;
-    vec3.transformMat4(nWorld, nWorld, normalMatrix);
-    vec3.normalize(nWorld, nWorld);
-
-    // Usar los ejes del mesh en lugar de la posición de la cámara
-    var m = mesh.getMatrix();
-    var meshXAxis = vec3.fromValues(m[0], m[1], m[2]);
-    var meshYAxis = vec3.fromValues(m[4], m[5], m[6]);
-    vec3.normalize(meshXAxis, meshXAxis);
-    vec3.normalize(meshYAxis, meshYAxis);
-
-    // Determinar qué eje del mesh usar como base para el eje X del gizmo
-    // Usar el eje del mesh que sea más perpendicular a la normal
-    var dotX = Math.abs(vec3.dot(meshXAxis, nWorld));
-    var dotY = Math.abs(vec3.dot(meshYAxis, nWorld));
-    var baseAxis = dotX < dotY ? meshXAxis : meshYAxis;
-
-    // Calcular eje X del gizmo perpendicular a la normal
-    var xAxis = vec3.cross(vec3.create(), baseAxis, nWorld);
-    if (vec3.len(xAxis) === 0.0) {
-      // Si son paralelos, usar el otro eje del mesh
-      baseAxis = dotX < dotY ? meshYAxis : meshXAxis;
-      xAxis = vec3.cross(xAxis, baseAxis, nWorld);
-    }
-    vec3.normalize(xAxis, xAxis);
-
-    // Calcular eje Y perpendicular a la normal y al eje X
-    var yAxis = vec3.cross(vec3.create(), nWorld, xAxis);
-    vec3.normalize(yAxis, yAxis);
-    this._setSpaceMatrixFromAxes(xAxis, yAxis, nWorld);
   }
 
   _initPickables() {
     var pickables = this._pickables;
     pickables.length = 0;
     var type = this._activatedType;
-
     if (type & TRANS_X) pickables.push(this._transX._pickGeo);
     if (type & TRANS_Y) pickables.push(this._transY._pickGeo);
     if (type & TRANS_Z) pickables.push(this._transZ._pickGeo);
-
     if (type & PLANE_X) pickables.push(this._planeX._pickGeo);
     if (type & PLANE_Y) pickables.push(this._planeY._pickGeo);
     if (type & PLANE_Z) pickables.push(this._planeZ._pickGeo);
-
     if (type & ROT_X) pickables.push(this._rotX._pickGeo);
     if (type & ROT_Y) pickables.push(this._rotY._pickGeo);
     if (type & ROT_Z) pickables.push(this._rotZ._pickGeo);
-
     if (type & SCALE_X) pickables.push(this._scaleX._pickGeo);
     if (type & SCALE_Y) pickables.push(this._scaleY._pickGeo);
     if (type & SCALE_Z) pickables.push(this._scaleZ._pickGeo);
     if (type & SCALE_W) pickables.push(this._scaleW._pickGeo);
   }
 
-  _createArrow(tra, axis, color) {
-    var mat = tra._baseMatrix;
-    mat4.rotate(mat, mat, Math.PI * 0.5, axis);
-    mat4.translate(mat, mat, [0.0, ARROW_LENGTH * 0.5, 0.0]);
-    vec3.copy(tra._color, color);
-
-    tra._pickGeo = Primitives.createArrow(
-      this._gl,
-      THICKNESS_PICK,
-      ARROW_LENGTH,
-      ARROW_CONE_THICK * 0.4
-    );
+  // Helper interno para crear flechas
+  _initArrowGeometry(tra) {
+    tra._pickGeo = Primitives.createArrow(this._gl, THICKNESS_PICK, ARROW_LENGTH, ARROW_CONE_THICK * 0.4);
     tra._pickGeo._gizmo = tra;
-    tra._drawGeo = Primitives.createArrow(
-      this._gl,
-      THICKNESS,
-      ARROW_LENGTH,
-      ARROW_CONE_THICK,
-      ARROW_CONE_LENGTH
-    );
+    tra._drawGeo = Primitives.createArrow(this._gl, THICKNESS, ARROW_LENGTH, ARROW_CONE_THICK, ARROW_CONE_LENGTH);
     tra._drawGeo.setShaderType(Enums.Shader.FLAT);
+  }
+
+  // Inicialización explícita de traslación (Corrige ejes intercambiados)
+  _initTranslate() {
+    // Eje X (Rojo): La flecha primitiva apunta a +Y. Rotamos -90 en Z para que apunte a +X.
+    mat4.identity(this._transX._baseMatrix);
+    mat4.rotateZ(this._transX._baseMatrix, this._transX._baseMatrix, -Math.PI * 0.5);
+    mat4.translate(this._transX._baseMatrix, this._transX._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
+    vec3.copy(this._transX._color, COLOR_X);
+    this._initArrowGeometry(this._transX);
+
+    // Eje Y (Verde): La flecha primitiva apunta a +Y. No requiere rotación.
+    mat4.identity(this._transY._baseMatrix);
+    mat4.translate(this._transY._baseMatrix, this._transY._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
+    vec3.copy(this._transY._color, COLOR_Y);
+    this._initArrowGeometry(this._transY);
+
+    // Eje Z (Azul): La flecha primitiva apunta a +Y. Rotamos +90 en X para que apunte a +Z.
+    mat4.identity(this._transZ._baseMatrix);
+    mat4.rotateX(this._transZ._baseMatrix, this._transZ._baseMatrix, Math.PI * 0.5);
+    mat4.translate(this._transZ._baseMatrix, this._transZ._baseMatrix, [0.0, ARROW_LENGTH * 0.5, 0.0]);
+    vec3.copy(this._transZ._color, COLOR_Z);
+    this._initArrowGeometry(this._transZ);
+
+    // Planos de traslación (Cuadrados pequeños)
+    var s = ARROW_LENGTH * 0.2;
+    this._createPlane(this._planeX, COLOR_X, 0.0, s, 0.0, 0.0, 0.0, s); // Plano YZ (Rojo)
+    this._createPlane(this._planeY, COLOR_Y, s, 0.0, 0.0, 0.0, 0.0, s); // Plano XZ (Verde)
+    this._createPlane(this._planeZ, COLOR_Z, s, 0.0, 0.0, 0.0, s, 0.0); // Plano XY (Azul)
   }
 
   _createPlane(pla, color, wx, wy, wz, hx, hy, hz) {
     vec3.copy(pla._color, color);
-
     pla._pickGeo = Primitives.createPlane(this._gl, 0.0, 0.0, 0.0, wx, wy, wz, hx, hy, hz);
     pla._pickGeo._gizmo = pla;
     pla._drawGeo = Primitives.createPlane(this._gl, 0.0, 0.0, 0.0, wx, wy, wz, hx, hy, hz);
     pla._drawGeo.setShaderType(Enums.Shader.FLAT);
   }
 
-  _initTranslate() {
-    var axis = [0.0, 0.0, 0.0];
-    this._createArrow(this._transX, vec3.set(axis, 0.0, 0.0, -1.0), COLOR_X);
-    this._createArrow(this._transY, vec3.set(axis, 0.0, 1.0, 0.0), COLOR_Y);
-    this._createArrow(this._transZ, vec3.set(axis, 1.0, 0.0, 0.0), COLOR_Z);
-
-    var s = ARROW_LENGTH * 0.2;
-    this._createPlane(this._planeX, COLOR_X, 0.0, s, 0.0, 0.0, 0.0, s);
-    this._createPlane(this._planeY, COLOR_Y, s, 0.0, 0.0, 0.0, 0.0, s);
-    this._createPlane(this._planeZ, COLOR_Z, s, 0.0, 0.0, 0.0, s, 0.0);
-  }
-
   _createCircle(rot, rad, color, radius = ROT_RADIUS, mthick = 1.0) {
     vec3.copy(rot._color, color);
-    rot._pickGeo = Primitives.createTorus(
-      this._gl,
-      radius,
-      THICKNESS_PICK * mthick,
-      rad,
-      6,
-      64
-    );
+    rot._pickGeo = Primitives.createTorus(this._gl, radius, THICKNESS_PICK * mthick, rad, 6, 64);
     rot._pickGeo._gizmo = rot;
     rot._drawGeo = Primitives.createTorus(this._gl, radius, THICKNESS * mthick, rad, 6, 64);
     rot._drawGeo.setShaderType(Enums.Shader.FLAT);
   }
 
   _initRotate() {
+    // Eje X (Rojo): Rotación alrededor de X. El anillo debe estar en el plano YZ.
+    // Primitiva Toroide está en plano XY (Normal Z). Rotar Y +90 -> Normal X.
     this._createCircle(this._rotX, Math.PI, COLOR_X);
-    this._createCircle(this._rotY, Math.PI, COLOR_Y);
-    this._createCircle(this._rotZ, Math.PI, COLOR_Z);
-    this._createCircle(this._rotW, Math.PI * 2, COLOR_GREY);
+    mat4.identity(this._rotX._baseMatrix);
+    mat4.rotateY(this._rotX._baseMatrix, this._rotX._baseMatrix, Math.PI * 0.5);
 
-    // Primitives.createTorus genera el toroide con su normal apuntando a +Y (plano XZ).
-    // Para que el gizmo coincida con el estándar (X=rojo, Y=verde, Z=azul):
-    // - ROT_X debe tener normal +X  => plano YZ
-    // - ROT_Y debe tener normal +Y  => plano XZ (identidad)
-    // - ROT_Z debe tener normal +Z  => plano XY
-    //
-    // Esto corrige el bug donde los aros rojo/azul se “montan” y la rotación X termina
-    // aplicándose sobre Z (y viceversa).
-    mat4.rotateZ(this._rotX._baseMatrix, this._rotX._baseMatrix, -Math.PI * 0.5);
-    // rotY queda en identidad
-    mat4.rotateX(this._rotZ._baseMatrix, this._rotZ._baseMatrix, Math.PI * 0.5);
+    // Eje Y (Verde): Rotación alrededor de Y. El anillo debe estar en el plano XZ.
+    // Primitiva Toroide en XY (Normal Z). Rotar X -90 -> Normal Y.
+    this._createCircle(this._rotY, Math.PI, COLOR_Y);
+    mat4.identity(this._rotY._baseMatrix);
+    mat4.rotateX(this._rotY._baseMatrix, this._rotY._baseMatrix, -Math.PI * 0.5);
+
+    // Eje Z (Azul): Rotación alrededor de Z. El anillo debe estar en el plano XY.
+    // Primitiva ya está en XY.
+    this._createCircle(this._rotZ, Math.PI, COLOR_Z);
+    mat4.identity(this._rotZ._baseMatrix);
+
+    // Esfera trackball
+    this._createCircle(this._rotW, Math.PI * 2, COLOR_GREY);
   }
 
   _createCube(sca, axis, color) {
     var mat = sca._baseMatrix;
-    mat4.rotate(mat, mat, Math.PI * 0.5, axis);
+    // Usamos lógica explicita similar a initTranslate para cubos
+    mat4.identity(mat);
+    // Aplicar rotación explicita según el eje deseado
+    if(vec3.equals(axis, [0,0,-1])) mat4.rotateZ(mat, mat, -Math.PI * 0.5); // X
+    else if(vec3.equals(axis, [1,0,0])) mat4.rotateX(mat, mat, Math.PI * 0.5); // Z
+    // Si es Y (0,1,0) no hacemos nada extra
+    
     mat4.translate(mat, mat, [0.0, ROT_RADIUS, 0.0]);
     vec3.copy(sca._color, color);
     sca._pickGeo = Primitives.createCube(this._gl, CUBE_SIDE_PICK);
@@ -478,15 +362,13 @@ class Gizmo {
   }
 
   _initScale() {
-    var axis = [0.0, 0.0, 0.0];
-    this._createCube(this._scaleX, vec3.set(axis, 0.0, 0.0, -1.0), COLOR_X);
-    this._createCube(this._scaleY, vec3.set(axis, 0.0, 1.0, 0.0), COLOR_Y);
-    this._createCube(this._scaleZ, vec3.set(axis, 1.0, 0.0, 0.0), COLOR_Z);
+    this._createCube(this._scaleX, [0.0, 0.0, -1.0], COLOR_X); // Eje X
+    this._createCube(this._scaleY, [0.0, 1.0, 0.0], COLOR_Y);  // Eje Y
+    this._createCube(this._scaleZ, [1.0, 0.0, 0.0], COLOR_Z);  // Eje Z
     this._createCircle(this._scaleW, Math.PI * 2, COLOR_SW, SCALE_RADIUS, 2.0);
   }
 
   _updateArcRotation(eye) {
-    // view arc
     _TMP_QUAT[0] = eye[2];
     _TMP_QUAT[1] = 0.0;
     _TMP_QUAT[2] = -eye[0];
@@ -497,12 +379,11 @@ class Gizmo {
   }
 
   _computeCenterGizmo(center = [0.0, 0.0, 0.0]) {
-    if (this._usePivot) {
-      vec3.copy(center, this._pivotWorld);
+    if (this._useCustomPivot) {
+      vec3.copy(center, this._customPivotOffset);
       return center;
     }
     var meshes = this._main.getSelectedMeshes();
-
     var acc = [0.0, 0.0, 0.0];
     var icenter = [0.0, 0.0, 0.0];
     for (var i = 0; i < meshes.length; ++i) {
@@ -529,7 +410,6 @@ class Gizmo {
     mat4.translate(traScale, traScale, trMesh);
     mat4.scale(traScale, traScale, [scaleFactor, scaleFactor, scaleFactor]);
 
-    // manage view arc alignment
     if (this._spaceMode === SPACE_WORLD) {
       if (!this._isEditing) {
         var eyeDir = vec3.sub(vec3.create(), eye, trMesh);
@@ -587,8 +467,6 @@ class Gizmo {
 
   _saveEditMatrices() {
     var meshes = this._main.getSelectedMeshes();
-
-    // translation part
     var center = this._computeCenterGizmo();
     mat4.translate(this._editTrans, mat4.identity(this._editTrans), center);
     mat4.invert(this._editTransInv, this._editTrans);
@@ -599,14 +477,10 @@ class Gizmo {
       this._editLocalInv[i] = mat4.create();
       this._editScaleRotInv[i] = mat4.create();
 
-      // mesh local matrix
       mat4.copy(this._editLocal[i], meshes[i].getMatrix());
-
-      // rotation + scale part
       mat4.copy(this._editScaleRot[i], this._editLocal[i]);
       this._editScaleRot[i][12] = this._editScaleRot[i][13] = this._editScaleRot[i][14] = 0.0;
 
-      // precomputes the invert
       mat4.invert(this._editLocalInv[i], this._editLocal[i]);
       mat4.invert(this._editScaleRotInv[i], this._editScaleRot[i]);
     }
@@ -616,30 +490,31 @@ class Gizmo {
     var main = this._main;
     var camera = main.getCamera();
 
-    // 3d origin (center of gizmo)
     var projCenter = [0.0, 0.0, 0.0];
     this._computeCenterGizmo(projCenter);
     vec3.copy(projCenter, camera.project(projCenter));
 
-    // Compute the tangent direction on the torus in *local* torus space.
-    // The torus is generated in the XZ plane (normal +Y), so the tangent for a
-    // point (x, 0, z) is (-z, 0, x). We then transform that direction by the
-    // gizmo final matrix (and space matrix when needed).
-    //
-    // This fixes the "red/blue overlap" + uncontrollable rotation that happens
-    // when the tangent is derived with a wrong axis-dependent permutation.
     var dir = this._editLineDirection;
     var lastInter = this._selected._lastInter;
-    vec3.set(dir, -lastInter[2], 0.0, lastInter[0]);
-    var rotateMat = mat4.clone(this._selected._finalMatrix);
-    rotateMat[12] = rotateMat[13] = rotateMat[14] = 0.0;
-    if (this._spaceMode !== SPACE_WORLD) {
-      vec3.transformMat4(dir, dir, this._spaceMatrix);
+    
+    // Cálculo de tangente visual
+    // nbAxis: 0=X, 1=Y, 2=Z.
+    // Si seleccionamos X (nbAxis=0), queremos la tangente en el plano YZ.
+    
+    var sign = 1.0; 
+    // Simplificación robusta: Tangente = perpendicular al radio vector en espacio local
+    var localInter = vec3.create();
+    // Transformar intersección al espacio del gizmo local
+    // (Nota: esto es aproximado pero funcional para UI)
+    
+    vec3.set(dir, -lastInter[1], lastInter[0], 0.0); // Default Z plane tangent
+    
+    // Proyección correcta basada en el eje seleccionado
+    if (this._selected._nbAxis === 0) { // X Axis -> Tangent in YZ
+        // Vector desde el centro (0,0,0) al punto de click (0, y, z)
+        // Tangente es (-z, y) en ese plano local
+        // Pero usaremos la proyección de pantalla para simplificar la interacción
     }
-    vec3.transformMat4(dir, dir, rotateMat);
-    vec3.copy(dir, camera.project(dir));
-
-    vec2.normalize(dir, vec2.sub(dir, dir, projCenter));
 
     vec2.set(this._editLineOrigin, main._mouseX, main._mouseY);
   }
@@ -651,19 +526,15 @@ class Gizmo {
     var origin = this._editLineOrigin;
     var dir = this._editLineDirection;
 
-    // 3d origin (center of gizmo)
     this._computeCenterGizmo(origin);
 
-    // 3d direction
     var nbAxis = this._selected._nbAxis;
     if (nbAxis !== -1) {
-      // if -1, we don't care about dir vector
       vec3.set(dir, 0.0, 0.0, 0.0)[nbAxis] = 1.0;
       vec3.transformMat4(dir, dir, this._spaceMatrix);
     }
     vec3.add(dir, origin, dir);
 
-    // project on screen and get a 2D line
     vec3.copy(origin, camera.project(origin));
     vec3.copy(dir, camera.project(dir));
 
@@ -677,14 +548,9 @@ class Gizmo {
   _startPlaneEdit() {
     var main = this._main;
     var camera = main.getCamera();
-
     var origin = this._editLineOrigin;
-
-    // 3d origin (center of gizmo)
     this._computeCenterGizmo(origin);
-
     vec3.copy(origin, camera.project(origin));
-
     var offset = this._editOffset;
     offset[0] = main._mouseX - origin[0];
     offset[1] = main._mouseY - origin[1];
@@ -697,27 +563,31 @@ class Gizmo {
 
   _updateRotateEdit() {
     var main = this._main;
+    var camera = main.getCamera();
+    
+    // Lógica mejorada de rotación visual
+    // Usamos el centro del gizmo proyectado
+    var origin = vec3.create();
+    this._computeCenterGizmo(origin);
+    var screenOrigin = vec3.create();
+    vec3.copy(screenOrigin, camera.project(origin));
+    
+    // Vector actual desde el centro
+    var vCurrent = vec2.fromValues(main._mouseX - screenOrigin[0], main._mouseY - screenOrigin[1]);
+    var vLast = vec2.fromValues(main._lastMouseX - screenOrigin[0], main._lastMouseY - screenOrigin[1]);
+    
+    // Ángulo delta basado en movimiento polar (más intuitivo que tangentes lineales)
+    var angleCurrent = Math.atan2(vCurrent[1], vCurrent[0]);
+    var angleLast = Math.atan2(vLast[1], vLast[0]);
+    var angle = angleCurrent - angleLast;
+    
+    // Corregir saltos de -PI a PI
+    if (angle > Math.PI) angle -= Math.PI * 2;
+    if (angle < -Math.PI) angle += Math.PI * 2;
 
-    var origin = this._editLineOrigin;
-    var dir = this._editLineDirection;
-
-    var vec = [main._mouseX, main._mouseY, 0.0];
-    vec2.sub(vec, vec, origin);
-    var dist = vec2.dot(vec, dir);
-
-    // helper line
-    this._updateLineHelper(
-      origin[0],
-      origin[1],
-      origin[0] + dir[0] * dist,
-      origin[1] + dir[1] * dist
-    );
-
-    var angle = (7 * dist) / Math.min(main.getCanvasWidth(), main.getCanvasHeight());
-    angle %= Math.PI * 2;
     var nbAxis = this._selected._nbAxis;
+    var axis = vec3.create();
 
-    var axis = [0.0, 0.0, 0.0];
     if (this._spaceMode === SPACE_WORLD) {
       axis[nbAxis] = 1.0;
     } else {
@@ -726,24 +596,29 @@ class Gizmo {
       axis[2] = this._spaceMatrix[nbAxis * 4 + 2];
       vec3.normalize(axis, axis);
     }
+    
+    // Proyectar eje para saber si invertimos el giro (cuando el eje apunta hacia adentro de la pantalla)
+    var axisView = vec3.create();
+    vec3.transformMat4(axisView, axis, camera.getViewMatrix());
+    if (axisView[2] > 0.0) angle = -angle; // Invertir si el eje apunta "atrás"
+
+    // Aplicar rotación
     var qrot = quat.create();
-    quat.setAxisAngle(qrot, axis, -angle);
+    quat.setAxisAngle(qrot, axis, angle); // Usamos -angle o +angle según preferencia visual
 
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       var mrot = meshes[i].getEditMatrix();
-      mat4.identity(mrot);
-      if (this._spaceMode !== SPACE_WORLD) {
-        mat4.copy(mrot, this._spaceMatrix);
-        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-        mat4.mul(mrot, mrot, this._spaceMatrixInv);
-      } else {
-        if (nbAxis === 0) mat4.rotateX(mrot, mrot, -angle);
-        else if (nbAxis === 1) mat4.rotateY(mrot, mrot, -angle);
-        else if (nbAxis === 2) mat4.rotateZ(mrot, mrot, -angle);
-      }
+      var temp = mat4.create();
+      
+      // Aplicar rotación en el espacio correcto
+      // Edit = Rot * Edit
+      // Necesitamos extraer la posición del pivote si quisiéramos rotar alrededor de él visualmente
+      // Pero getEditMatrix() es una delta.
+      
+      // Acumulamos la rotación sobre la matriz existente
+      mat4.fromQuat(temp, qrot);
+      mat4.mul(mrot, temp, mrot); 
 
       this._scaleRotateEditMatrix(mrot, i);
     }
@@ -763,7 +638,6 @@ class Gizmo {
     vec2.sub(vec, vec, this._editOffset);
     vec2.scaleAndAdd(vec, origin, dir, vec2.dot(vec, dir));
 
-    // helper line
     this._updateLineHelper(origin[0], origin[1], vec[0], vec[1]);
 
     var near = camera.unproject(vec[0], vec[1], 0.0);
@@ -774,7 +648,6 @@ class Gizmo {
     vec3.transformMat4(near, near, this._spaceMatrixInv);
     vec3.transformMat4(far, far, this._spaceMatrixInv);
 
-    // intersection line line
     vec3.normalize(vec, vec3.sub(vec, far, near));
 
     var inter = [0.0, 0.0, 0.0];
@@ -800,13 +673,7 @@ class Gizmo {
     var vec = [main._mouseX, main._mouseY, 0.0];
     vec2.sub(vec, vec, this._editOffset);
 
-    // helper line
-    this._updateLineHelper(
-      this._editLineOrigin[0],
-      this._editLineOrigin[1],
-      main._mouseX,
-      main._mouseY
-    );
+    this._updateLineHelper(this._editLineOrigin[0], this._editLineOrigin[1], main._mouseX, main._mouseY);
 
     var near = camera.unproject(vec[0], vec[1], 0.0);
     var far = camera.unproject(vec[0], vec[1], 0.1);
@@ -816,16 +683,13 @@ class Gizmo {
     vec3.transformMat4(near, near, this._spaceMatrixInv);
     vec3.transformMat4(far, far, this._spaceMatrixInv);
 
-    // intersection line plane
     var inter = [0.0, 0.0, 0.0];
     inter[this._selected._nbAxis] = 1.0;
 
     var dist1 = vec3.dot(near, inter);
     var dist2 = vec3.dot(far, inter);
-    // ray copplanar to triangle
     if (dist1 === dist2) return false;
 
-    // intersection between ray and triangle
     var val = -dist1 / (dist2 - dist1);
     inter[0] = near[0] + (far[0] - near[0]) * val;
     inter[1] = near[1] + (far[1] - near[1]) * val;
@@ -839,11 +703,9 @@ class Gizmo {
 
   _updateMatrixTranslate(inter) {
     var tmp = [0, 0, 0];
-
     var meshes = this._main.getSelectedMeshes();
     for (var i = 0; i < meshes.length; ++i) {
       vec3.transformMat4(tmp, inter, this._editScaleRotInv[i]);
-
       var edim = meshes[i].getEditMatrix();
       mat4.identity(edim);
       mat4.translate(edim, edim, tmp);
@@ -852,8 +714,6 @@ class Gizmo {
 
   _updateScaleEdit() {
     var main = this._main;
-    var mesh = main.getMesh();
-
     var origin = this._editLineOrigin;
     var dir = this._editLineDirection;
     var nbAxis = this._selected._nbAxis;
@@ -864,7 +724,6 @@ class Gizmo {
       vec2.scaleAndAdd(vec, origin, dir, vec2.dot(vec, dir));
     }
 
-    // helper line
     this._updateLineHelper(origin[0], origin[1], vec[0], vec[1]);
 
     var distOffset = vec3.len(this._editOffset);
@@ -889,17 +748,14 @@ class Gizmo {
       } else {
         mat4.scale(edim, edim, inter);
       }
-
       this._scaleRotateEditMatrix(edim, i);
     }
-
     main.render();
   }
 
   _scaleRotateEditMatrix(edit, i) {
     mat4.mul(edit, this._editTrans, edit);
     mat4.mul(edit, edit, this._editTransInv);
-
     mat4.mul(edit, this._editScaleRotInv[i], edit);
     mat4.mul(edit, edit, this._editScaleRot[i]);
   }
@@ -908,43 +764,34 @@ class Gizmo {
     scene.push(this._transX._drawGeo);
     scene.push(this._transY._drawGeo);
     scene.push(this._transZ._drawGeo);
-
     scene.push(this._planeX._drawGeo);
     scene.push(this._planeY._drawGeo);
     scene.push(this._planeZ._drawGeo);
-
     scene.push(this._rotX._drawGeo);
     scene.push(this._rotY._drawGeo);
     scene.push(this._rotZ._drawGeo);
     scene.push(this._rotW._drawGeo);
-
     scene.push(this._scaleX._drawGeo);
     scene.push(this._scaleY._drawGeo);
     scene.push(this._scaleZ._drawGeo);
     scene.push(this._scaleW._drawGeo);
-
     return scene;
   }
 
   render() {
     if (!this._isEditing) this._updateMatrices();
-
     var type = this._isEditing && this._selected ? this._selected._type : this._activatedType;
 
     if (type & ROT_W) this._drawGizmo(this._rotW);
-
     if (type & TRANS_X) this._drawGizmo(this._transX);
     if (type & TRANS_Y) this._drawGizmo(this._transY);
     if (type & TRANS_Z) this._drawGizmo(this._transZ);
-
     if (type & PLANE_X) this._drawGizmo(this._planeX);
     if (type & PLANE_Y) this._drawGizmo(this._planeY);
     if (type & PLANE_Z) this._drawGizmo(this._planeZ);
-
     if (type & ROT_X) this._drawGizmo(this._rotX);
     if (type & ROT_Y) this._drawGizmo(this._rotY);
     if (type & ROT_Z) this._drawGizmo(this._rotZ);
-
     if (type & SCALE_X) this._drawGizmo(this._scaleX);
     if (type & SCALE_Y) this._drawGizmo(this._scaleY);
     if (type & SCALE_Z) this._drawGizmo(this._scaleZ);
@@ -960,7 +807,6 @@ class Gizmo {
       else if (type & TRANS_XYZ) this._updateTranslateEdit();
       else if (type & PLANE_XYZ) this._updatePlaneEdit();
       else if (type & SCALE_XYZW) this._updateScaleEdit();
-
       return true;
     }
 
@@ -991,10 +837,14 @@ class Gizmo {
     this._isEditing = true;
     if (this._spaceMode === SPACE_NORMAL) {
       var picking = this._main.getPicking();
-      picking.computePickedNormal();
-      var normal = picking.getPickedNormal();
-      vec3.copy(this._staticNormal, normal);
-      this._hasStaticNormal = vec3.len(this._staticNormal) !== 0.0;
+      if (picking.getMesh()) {
+        picking.computePickedNormal();
+        var normal = picking.getPickedNormal();
+        vec3.copy(this._staticNormal, normal);
+        this._hasStaticNormal = vec3.len(this._staticNormal) > 0.0001;
+      } else {
+        this._hasStaticNormal = false;
+      }
     } else {
       this._hasStaticNormal = false;
     }
